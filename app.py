@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, redirect, url_for, session, flash, make_response
+from flask import Flask, render_template, request, jsonify, redirect, url_for, session, flash, make_response, send_file
 import os
 from dotenv import load_dotenv
 import json
@@ -2615,6 +2615,219 @@ def send_consultation_message(request_id):
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'message': f'Failed to send message: {str(e)}'}), 500
+
+@app.route('/api/consultation/<request_id>/upload', methods=['POST'])
+def upload_consultation_file(request_id):
+    """Upload a file to consultation chat"""
+    print(f"🔍 DEBUG: POST /api/consultation/{request_id}/upload called")
+    
+    # Check if either consultant or farmer is logged in
+    if 'consultant_id' not in session and 'user_id' not in session:
+        print("❌ DEBUG: No consultant_id or user_id in session")
+        return jsonify({'success': False, 'message': 'Unauthorized - Please login again'}), 401
+    
+    try:
+        # Check if database collections are available
+        if not MONGODB_AVAILABLE or messages_collection is None or consultation_requests_collection is None:
+            print("❌ DEBUG: Database not available")
+            return jsonify({'success': False, 'message': 'Database service unavailable'}), 503
+        
+        # Check if file was uploaded
+        if 'file' not in request.files:
+            return jsonify({'success': False, 'message': 'No file uploaded'}), 400
+        
+        file = request.files['file']
+        message_text = request.form.get('message', '').strip()
+        
+        if file.filename == '':
+            return jsonify({'success': False, 'message': 'No file selected'}), 400
+        
+        # Find the consultation
+        consultation = consultation_requests_collection.find_one({
+            '_id': ObjectId(request_id)
+        })
+        
+        if not consultation:
+            print("❌ DEBUG: Consultation not found")
+            return jsonify({'success': False, 'message': 'Consultation not found'}), 404
+        
+        # Determine sender type and verify access
+        if 'consultant_id' in session:
+            # Consultant sending file
+            if consultation.get('assigned_to') != session['consultant_id']:
+                print("❌ DEBUG: Consultant not assigned to this consultation")
+                return jsonify({'success': False, 'message': 'Consultation not assigned to you'}), 403
+            
+            sender_type = 'consultant'
+            sender_id = session['consultant_id']
+            sender_name = session.get('consultant_name', 'Unknown Consultant')
+            
+        else:
+            # Farmer sending file
+            user = users_collection.find_one({'_id': ObjectId(session['user_id'])})
+            has_access = (
+                consultation.get('created_by_user_id') == session['user_id'] or
+                consultation.get('farmer_email') == user.get('email', '') or
+                consultation.get('contact_phone') == user.get('phone', '') or
+                consultation.get('farmer_name') == user.get('name', '')
+            )
+            
+            if not has_access:
+                print("❌ DEBUG: Farmer does not have access to this consultation")
+                return jsonify({'success': False, 'message': 'Access denied'}), 403
+            
+            sender_type = 'farmer'
+            sender_id = session['user_id']
+            sender_name = user.get('name', 'Farmer')
+        
+        # Validate file type and size
+        allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'pdf', 'doc', 'docx'}
+        max_file_size = 10 * 1024 * 1024  # 10MB
+        
+        filename = secure_filename(file.filename)
+        file_ext = filename.rsplit('.', 1)[1].lower() if '.' in filename else ''
+        
+        if file_ext not in allowed_extensions:
+            return jsonify({'success': False, 'message': 'File type not allowed'}), 400
+        
+        # Check file size
+        file.seek(0, os.SEEK_END)
+        file_size = file.tell()
+        file.seek(0)
+        
+        if file_size > max_file_size:
+            return jsonify({'success': False, 'message': 'File too large (max 10MB)'}), 400
+        
+        # Create uploads directory if it doesn't exist
+        upload_dir = os.path.join('static', 'consultation_files')
+        os.makedirs(upload_dir, exist_ok=True)
+        
+        # Generate unique filename
+        file_id = str(uuid.uuid4())
+        unique_filename = f"{file_id}_{filename}"
+        file_path = os.path.join(upload_dir, unique_filename)
+        
+        # Save file
+        file.save(file_path)
+        
+        # Create message document with file info
+        message_doc = {
+            'consultation_id': request_id,
+            'sender_type': sender_type,
+            'sender_id': sender_id,
+            'sender_name': sender_name,
+            'message': message_text,
+            'file_info': {
+                'file_id': file_id,
+                'filename': filename,
+                'unique_filename': unique_filename,
+                'file_path': file_path,
+                'content_type': file.content_type,
+                'size': file_size
+            },
+            'timestamp': datetime.now(timezone.utc)
+        }
+        
+        print(f"🔍 DEBUG: Creating file message document: {message_doc}")
+        
+        # Insert message
+        result = messages_collection.insert_one(message_doc)
+        
+        print(f"✅ DEBUG: File message inserted successfully with ID: {result.inserted_id}")
+        
+        # Return the message with ID
+        message_doc['id'] = str(result.inserted_id)
+        message_doc['_id'] = str(result.inserted_id)
+        message_doc['timestamp'] = message_doc['timestamp'].strftime('%Y-%m-%d %H:%M:%S')
+        
+        print(f"✅ DEBUG: Returning file message: {message_doc}")
+        return jsonify({'success': True, 'message': message_doc})
+        
+    except Exception as e:
+        print(f"❌ ERROR uploading file: {e}")
+        print(f"❌ ERROR type: {type(e).__name__}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': f'Failed to upload file: {str(e)}'}), 500
+
+@app.route('/api/consultation/<request_id>/download/<file_id>')
+def download_consultation_file(request_id, file_id):
+    """Download a file from consultation chat"""
+    print(f"🔍 DEBUG: GET /api/consultation/{request_id}/download/{file_id} called")
+    
+    # Check if either consultant or farmer is logged in
+    if 'consultant_id' not in session and 'user_id' not in session:
+        print("❌ DEBUG: No consultant_id or user_id in session")
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 401
+    
+    try:
+        # Check if database collections are available
+        if not MONGODB_AVAILABLE or messages_collection is None or consultation_requests_collection is None:
+            print("❌ DEBUG: Database not available")
+            return jsonify({'success': False, 'message': 'Database service unavailable'}), 503
+        
+        # Find the consultation
+        consultation = consultation_requests_collection.find_one({
+            '_id': ObjectId(request_id)
+        })
+        
+        if not consultation:
+            print("❌ DEBUG: Consultation not found")
+            return jsonify({'success': False, 'message': 'Consultation not found'}), 404
+        
+        # Verify access to consultation
+        has_access = False
+        
+        if 'consultant_id' in session:
+            # Consultant access - must be assigned to this consultation
+            has_access = consultation.get('assigned_to') == session['consultant_id']
+        elif 'user_id' in session:
+            # Farmer access
+            user = users_collection.find_one({'_id': ObjectId(session['user_id'])})
+            has_access = (
+                consultation.get('created_by_user_id') == session['user_id'] or
+                consultation.get('farmer_email') == user.get('email', '') or
+                consultation.get('contact_phone') == user.get('phone', '') or
+                consultation.get('farmer_name') == user.get('name', '')
+            )
+        
+        if not has_access:
+            print("❌ DEBUG: User does not have access to this consultation")
+            return jsonify({'success': False, 'message': 'Access denied'}), 403
+        
+        # Find the message with the file
+        message = messages_collection.find_one({
+            'consultation_id': request_id,
+            'file_info.file_id': file_id
+        })
+        
+        if not message or 'file_info' not in message:
+            print("❌ DEBUG: File not found in messages")
+            return jsonify({'success': False, 'message': 'File not found'}), 404
+        
+        file_info = message['file_info']
+        file_path = file_info['file_path']
+        
+        # Check if file exists on disk
+        if not os.path.exists(file_path):
+            print(f"❌ DEBUG: File not found on disk: {file_path}")
+            return jsonify({'success': False, 'message': 'File not found on server'}), 404
+        
+        # Send file
+        from flask import send_file
+        return send_file(
+            file_path,
+            as_attachment=True,
+            download_name=file_info['filename'],
+            mimetype=file_info.get('content_type', 'application/octet-stream')
+        )
+        
+    except Exception as e:
+        print(f"❌ ERROR downloading file: {e}")
+        print(f"❌ ERROR type: {type(e).__name__}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': f'Failed to download file: {str(e)}'}), 500
 
 @app.route('/api/consultation-requests/<request_id>', methods=['GET'])
 def get_consultation_request_details(request_id):

@@ -203,8 +203,14 @@
 
         .message-input-form {
             display: flex;
+            flex-direction: column;
             gap: 10px;
+        }
+
+        .message-input-row {
+            display: flex;
             align-items: flex-end;
+            gap: 5px;
         }
 
         .message-input {
@@ -250,6 +256,133 @@
             cursor: not-allowed;
             transform: none;
             box-shadow: none;
+        }
+
+        .file-attachment-btn {
+            background: none;
+            border: none;
+            color: #666;
+            font-size: 18px;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 50%;
+            transition: all 0.3s;
+            margin-right: 8px;
+        }
+
+        .file-attachment-btn:hover {
+            background: #f0f0f0;
+            color: #2E8B57;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .file-preview {
+            display: none;
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+
+        .file-preview-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .file-preview-icon {
+            font-size: 20px;
+        }
+
+        .file-preview-info {
+            flex: 1;
+        }
+
+        .file-preview-name {
+            font-weight: 500;
+            color: #333;
+        }
+
+        .file-preview-size {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .file-remove-btn {
+            background: #ff4757;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .message-file {
+            margin-top: 8px;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.05);
+            border-radius: 8px;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+        }
+
+        .message.consultant .message-file {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .file-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .file-icon {
+            font-size: 24px;
+        }
+
+        .file-details {
+            flex: 1;
+        }
+
+        .file-name {
+            font-weight: 500;
+            margin-bottom: 2px;
+        }
+
+        .file-size {
+            font-size: 12px;
+            opacity: 0.7;
+        }
+
+        .file-download-btn {
+            background: #2E8B57;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .file-download-btn:hover {
+            background: #1e5d3a;
+        }
+
+        .message.consultant .file-download-btn {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+
+        .message.consultant .file-download-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
         }
 
         .no-messages {
@@ -358,15 +491,31 @@
 
         <div class="message-input-container">
             <form class="message-input-form" id="messageForm">
-                <textarea 
-                    class="message-input" 
-                    id="messageInput" 
-                    placeholder="Type your response to the farmer..."
-                    rows="1"
-                ></textarea>
-                <button type="submit" class="send-btn" id="sendBtn">
-                    ➤
-                </button>
+                <div class="file-preview" id="filePreview">
+                    <div class="file-preview-item" id="filePreviewItem">
+                        <span class="file-preview-icon" id="filePreviewIcon">📄</span>
+                        <div class="file-preview-info">
+                            <div class="file-preview-name" id="filePreviewName"></div>
+                            <div class="file-preview-size" id="filePreviewSize"></div>
+                        </div>
+                        <button type="button" class="file-remove-btn" id="fileRemoveBtn" onclick="removeFile()">×</button>
+                    </div>
+                </div>
+                <div class="message-input-row">
+                    <button type="button" class="file-attachment-btn" id="fileAttachBtn" onclick="document.getElementById('fileInput').click()">
+                        📎
+                    </button>
+                    <input type="file" id="fileInput" class="file-input" accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx" onchange="handleFileSelect(event)">
+                    <textarea 
+                        class="message-input" 
+                        id="messageInput" 
+                        placeholder="Type your response to the farmer..."
+                        rows="1"
+                    ></textarea>
+                    <button type="submit" class="send-btn" id="sendBtn">
+                        ➤
+                    </button>
+                </div>
             </form>
         </div>
     </div>
@@ -376,9 +525,78 @@
         let userType = document.body.getAttribute('data-is-farmer') === 'true' ? 'farmer' : 'consultant';
         let messages = [];
         let pollingInterval;
+        let selectedFile = null;
         
         console.log('🔍 DEBUG: Initial consultation ID:', consultationId);
         console.log('🔍 DEBUG: User type:', userType);
+
+        // File handling functions
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            // Check file size (max 10MB)
+            if (file.size > 10 * 1024 * 1024) {
+                alert('File size too large. Please select a file smaller than 10MB.');
+                return;
+            }
+
+            // Check file type
+            const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+            if (!allowedTypes.includes(file.type)) {
+                alert('File type not supported. Please select an image, PDF, or Word document.');
+                return;
+            }
+
+            selectedFile = file;
+            showFilePreview(file);
+        }
+
+        function showFilePreview(file) {
+            const preview = document.getElementById('filePreview');
+            const icon = document.getElementById('filePreviewIcon');
+            const name = document.getElementById('filePreviewName');
+            const size = document.getElementById('filePreviewSize');
+
+            // Set appropriate icon based on file type
+            if (file.type.startsWith('image/')) {
+                icon.textContent = '🖼️';
+            } else if (file.type === 'application/pdf') {
+                icon.textContent = '📄';
+            } else {
+                icon.textContent = '📝';
+            }
+
+            name.textContent = file.name;
+            size.textContent = formatFileSize(file.size);
+            preview.style.display = 'block';
+        }
+
+        function removeFile() {
+            selectedFile = null;
+            document.getElementById('fileInput').value = '';
+            document.getElementById('filePreview').style.display = 'none';
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function getFileIcon(filename, mimeType) {
+            if (mimeType && mimeType.startsWith('image/')) {
+                return '🖼️';
+            } else if (filename.endsWith('.pdf') || mimeType === 'application/pdf') {
+                return '📄';
+            } else if (filename.endsWith('.doc') || filename.endsWith('.docx') || mimeType.includes('word')) {
+                return '📝';
+            } else {
+                return '📎';
+            }
+        }
         
         // Fallback - extract from URL if consultation ID is empty
         if (!consultationId || consultationId === '') {
@@ -568,20 +786,41 @@
                 return;
             }
 
-            const messagesHtml = messages.map(msg => `
-                <div class="message ${msg.sender_type}">
-                    <div class="message-avatar">
-                        ${msg.sender_type === 'farmer' ? '🌾' : '👨‍⚕️'}
-                    </div>
-                    <div class="message-content">
-                        <div class="message-header">
-                            <span class="message-sender">${msg.sender_name}</span>
-                            <span class="message-time">${formatTime(msg.timestamp)}</span>
+            const messagesHtml = messages.map(msg => {
+                let fileHtml = '';
+                if (msg.file_info) {
+                    const fileIcon = getFileIcon(msg.file_info.filename, msg.file_info.content_type);
+                    fileHtml = `
+                        <div class="message-file">
+                            <div class="file-info">
+                                <span class="file-icon">${fileIcon}</span>
+                                <div class="file-details">
+                                    <div class="file-name">${msg.file_info.filename}</div>
+                                    <div class="file-size">${formatFileSize(msg.file_info.size)}</div>
+                                </div>
+                                <a href="/api/consultation/${consultationId}/download/${msg.file_info.file_id}" 
+                                   class="file-download-btn" target="_blank">Download</a>
+                            </div>
                         </div>
-                        <div class="message-text">${msg.message}</div>
+                    `;
+                }
+                
+                return `
+                    <div class="message ${msg.sender_type}">
+                        <div class="message-avatar">
+                            ${msg.sender_type === 'farmer' ? '🌾' : '👨‍⚕️'}
+                        </div>
+                        <div class="message-content">
+                            <div class="message-header">
+                                <span class="message-sender">${msg.sender_name}</span>
+                                <span class="message-time">${formatTime(msg.timestamp)}</span>
+                            </div>
+                            ${msg.message ? `<div class="message-text">${msg.message}</div>` : ''}
+                            ${fileHtml}
+                        </div>
                     </div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
 
             container.innerHTML = messagesHtml;
             scrollToBottom();
@@ -636,9 +875,11 @@
             const message = messageInput.value.trim();
 
             console.log('🔍 DEBUG: Attempting to send message:', message);
+            console.log('🔍 DEBUG: Selected file:', selectedFile);
 
-            if (!message) {
-                console.log('❌ DEBUG: Empty message, not sending');
+            // Check if we have either a message or a file
+            if (!message && !selectedFile) {
+                console.log('❌ DEBUG: No message or file, not sending');
                 return;
             }
 
@@ -648,28 +889,50 @@
             sendBtn.innerHTML = '⏳';
 
             try {
-                console.log('🔍 DEBUG: Sending POST request to:', `/api/consultation/${consultationId}/messages`);
-                console.log('🔍 DEBUG: Request body:', JSON.stringify({ message }));
+                let response;
                 
-                const response = await fetch(`/api/consultation/${consultationId}/messages`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ message })
-                });
+                if (selectedFile) {
+                    // Send file
+                    console.log('🔍 DEBUG: Sending file:', selectedFile.name);
+                    const formData = new FormData();
+                    formData.append('file', selectedFile);
+                    if (message) {
+                        formData.append('message', message);
+                    }
+                    
+                    response = await fetch(`/api/consultation/${consultationId}/upload`, {
+                        method: 'POST',
+                        body: formData
+                    });
+                } else {
+                    // Send text message only
+                    console.log('🔍 DEBUG: Sending text message to:', `/api/consultation/${consultationId}/messages`);
+                    console.log('🔍 DEBUG: Request body:', JSON.stringify({ message }));
+                    
+                    response = await fetch(`/api/consultation/${consultationId}/messages`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ message })
+                    });
+                }
 
                 console.log('🔍 DEBUG: Response status:', response.status);
-                console.log('🔍 DEBUG: Response headers:', response.headers);
 
                 const data = await response.json();
                 console.log('🔍 DEBUG: Response data:', data);
 
                 if (data.success) {
-                    console.log('✅ DEBUG: Message sent successfully');
+                    console.log('✅ DEBUG: Message/file sent successfully');
                     // Clear input
                     messageInput.value = '';
                     messageInput.style.height = 'auto';
+                    
+                    // Remove file preview
+                    if (selectedFile) {
+                        removeFile();
+                    }
                     
                     // Add message to display immediately
                     messages.push(data.message);
