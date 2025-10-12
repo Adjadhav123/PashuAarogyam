@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Consultation Chat - GoRakshaAI</title>
+    <title>Consultation Chat - PashuAarogyam</title>
     <style>
         * {
             margin: 0;
@@ -325,7 +325,7 @@
         }
     </style>
 </head>
-<body>
+<body data-is-farmer="{% if is_farmer %}true{% else %}false{% endif %}"
     <div class="navbar">
         <div class="navbar-left">
             <button class="back-btn" onclick="goBack()">← Back</button>
@@ -373,7 +373,7 @@
 
     <script>
         let consultationId = '{{ consultation.id }}' || '{{ consultation._id }}';
-        let userType = {% if is_farmer %}'farmer'{% else %}'consultant'{% endif %};
+        let userType = document.body.getAttribute('data-is-farmer') === 'true' ? 'farmer' : 'consultant';
         let messages = [];
         let pollingInterval;
         

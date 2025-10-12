@@ -18,6 +18,7 @@ ultralytics
 opencv-python
 numpy
 scipy
+reportlab
 google-generativeai
 langchain
 langchain-google-genai

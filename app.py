@@ -1,10 +1,27 @@
-from flask import Flask, render_template, request, jsonify, redirect, url_for, session, flash
+from flask import Flask, render_template, request, jsonify, redirect, url_for, session, flash, make_response
 import os
 from dotenv import load_dotenv
 import json
 from werkzeug.utils import secure_filename
 import uuid
 import bcrypt
+
+# Try to import reportlab for PDF generation
+try:
+    from reportlab.lib.pagesizes import letter, A4
+    from reportlab.lib import colors
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+    from reportlab.lib.units import inch
+    from reportlab.graphics.shapes import Drawing
+    from reportlab.graphics.charts.piecharts import Pie
+    from reportlab.graphics.charts.linecharts import HorizontalLineChart
+    REPORTLAB_AVAILABLE = True
+    print("✅ ReportLab import successful!")
+except ImportError as e:
+    print(f"⚠️  ReportLab import failed: {e}")
+    print("⚠️  PDF export functionality will be disabled.")
+    REPORTLAB_AVAILABLE = False
 
 # Load environment variables
 load_dotenv()
@@ -279,7 +296,7 @@ def initialize_sample_data():
         print(f"⚠️  Error initializing sample data: {e}")
 
 # Initialize MongoDB and chatbot on startup
-print("🚀 Starting GoRakshaAI application...")
+print("🚀 Starting PashuAarogyam application...")
 db_connected = initialize_mongodb()
 if db_connected:
     print("🎉 Database connection established!")
@@ -598,6 +615,403 @@ def logout():
     """Handle logout"""
     session.clear()
     return redirect(url_for('index'))
+
+# Admin Panel Routes
+@app.route('/admin/login', methods=['GET', 'POST'])
+def admin_login():
+    """Admin login page and handler"""
+    if request.method == 'GET':
+        print("🔍 DEBUG: Admin login page accessed")
+        if 'admin_logged_in' in session:
+            return redirect(url_for('admin_dashboard'))
+        return render_template('admin_login.html')
+    
+    elif request.method == 'POST':
+        """Handle admin login"""
+        try:
+            data = request.get_json() if request.is_json else request.form
+            username = data.get('username', '').strip()
+            password = data.get('password', '')
+            
+            # Admin credentials
+            ADMIN_USERNAME = 'pashuarogyam'
+            ADMIN_PASSWORD = 'pashuarogyam@2025'
+            
+            if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
+                session['admin_logged_in'] = True
+                session['admin_username'] = username
+                print(f"✅ Admin logged in successfully: {username}")
+                return jsonify({
+                    'success': True,
+                    'message': 'Admin login successful',
+                    'redirect': url_for('admin_dashboard')
+                })
+            else:
+                return jsonify({'success': False, 'message': 'Invalid admin credentials'}), 401
+                
+        except Exception as e:
+            print(f"❌ Admin login error: {str(e)}")
+            return jsonify({'success': False, 'message': 'An error occurred during admin login'}), 500
+
+@app.route('/admin-dashboard')
+def admin_dashboard():
+    """Admin dashboard"""
+    if 'admin_logged_in' not in session:
+        return redirect(url_for('admin_login'))
+    
+    try:
+        # Get statistics
+        stats = {
+            'total_users': 0,
+            'total_consultants': 0,
+            'total_predictions': 0,
+            'total_consultation_requests': 0,
+            'recent_users': [],
+            'recent_predictions': [],
+            'recent_consultations': []
+        }
+        
+        # Check if database is available
+        is_connected, status_msg = get_db_status()
+        if is_connected:
+            # Get counts
+            stats['total_users'] = users_collection.count_documents({})
+            stats['total_consultants'] = consultants_collection.count_documents({})
+            stats['total_predictions'] = predictions_collection.count_documents({})
+            stats['total_consultation_requests'] = consultation_requests_collection.count_documents({})
+            
+            # Get recent users (last 10)
+            recent_users = list(users_collection.find({}, {
+                'name': 1, 'email': 1, 'created_at': 1
+            }).sort('created_at', -1).limit(10))
+            
+            for user in recent_users:
+                stats['recent_users'].append({
+                    'id': str(user['_id']),
+                    'name': user.get('name', 'Unknown'),
+                    'email': user.get('email', 'Unknown'),
+                    'created_at': user.get('created_at', datetime.now()).strftime('%Y-%m-%d %H:%M:%S') if user.get('created_at') else 'Unknown'
+                })
+            
+            # Get recent predictions (last 10)
+            recent_predictions = list(predictions_collection.find({}, {
+                'user_id': 1, 'animal_type': 1, 'prediction': 1, 'confidence': 1, 'created_at': 1
+            }).sort('created_at', -1).limit(10))
+            
+            for pred in recent_predictions:
+                # Get user info
+                user_info = users_collection.find_one({'_id': ObjectId(pred.get('user_id', ''))}, {'name': 1, 'email': 1}) if pred.get('user_id') else None
+                
+                stats['recent_predictions'].append({
+                    'id': str(pred['_id']),
+                    'animal_type': pred.get('animal_type', 'Unknown'),
+                    'prediction': pred.get('prediction', 'Unknown'),
+                    'confidence': pred.get('confidence', 0),
+                    'user_name': user_info.get('name', 'Unknown') if user_info else 'Unknown',
+                    'user_email': user_info.get('email', 'Unknown') if user_info else 'Unknown',
+                    'created_at': pred.get('created_at', datetime.now()).strftime('%Y-%m-%d %H:%M:%S') if pred.get('created_at') else 'Unknown'
+                })
+            
+            # Get recent consultation requests (last 10)
+            recent_consultations = list(consultation_requests_collection.find({}, {
+                'farmer_name': 1, 'farmer_email': 1, 'animal_type': 1, 'status': 1, 'urgency': 1, 'created_at': 1
+            }).sort('created_at', -1).limit(10))
+            
+            for consult in recent_consultations:
+                stats['recent_consultations'].append({
+                    'id': str(consult['_id']),
+                    'farmer_name': consult.get('farmer_name', 'Unknown'),
+                    'farmer_email': consult.get('farmer_email', 'Unknown'),
+                    'animal_type': consult.get('animal_type', 'Unknown'),
+                    'status': consult.get('status', 'Unknown'),
+                    'urgency': consult.get('urgency', 'Unknown'),
+                    'created_at': consult.get('created_at', datetime.now()).strftime('%Y-%m-%d %H:%M:%S') if consult.get('created_at') else 'Unknown'
+                })
+        
+        return render_template('admin_dashboard.html', stats=stats, db_available=is_connected)
+        
+    except Exception as e:
+        print(f"❌ Admin dashboard error: {str(e)}")
+        flash('Error loading admin dashboard', 'error')
+        return render_template('admin_dashboard.html', stats={
+            'total_users': 0,
+            'total_consultants': 0,
+            'total_predictions': 0,
+            'total_consultation_requests': 0,
+            'recent_users': [],
+            'recent_predictions': [],
+            'recent_consultations': []
+        }, db_available=False)
+
+@app.route('/admin/logout')
+def admin_logout():
+    """Handle admin logout"""
+    session.pop('admin_logged_in', None)
+    session.pop('admin_username', None)
+    flash('Logged out successfully', 'success')
+    return redirect(url_for('admin_login'))
+
+@app.route('/admin/export-report')
+def export_admin_report():
+    """Export admin dashboard data as PDF"""
+    if 'admin_logged_in' not in session:
+        return redirect(url_for('admin_login'))
+    
+    if not REPORTLAB_AVAILABLE:
+        flash('PDF export functionality is not available. Please install reportlab.', 'error')
+        return redirect(url_for('admin_dashboard'))
+    
+    try:
+        # Get the same stats data as admin dashboard
+        stats = {
+            'total_users': 0,
+            'total_consultants': 0,
+            'total_predictions': 0,
+            'total_consultation_requests': 0,
+            'recent_users': [],
+            'recent_predictions': [],
+            'recent_consultations': []
+        }
+        
+        # Check if database is available
+        is_connected, status_msg = get_db_status()
+        if is_connected:
+            # Get counts
+            stats['total_users'] = users_collection.count_documents({})
+            stats['total_consultants'] = consultants_collection.count_documents({})
+            stats['total_predictions'] = predictions_collection.count_documents({})
+            stats['total_consultation_requests'] = consultation_requests_collection.count_documents({})
+            
+            # Get recent users (last 10)
+            recent_users = list(users_collection.find({}, {
+                'name': 1, 'email': 1, 'created_at': 1
+            }).sort('created_at', -1).limit(10))
+            
+            for user in recent_users:
+                stats['recent_users'].append({
+                    'name': user.get('name', 'Unknown'),
+                    'email': user.get('email', 'Unknown'),
+                    'created_at': user.get('created_at', datetime.now()).strftime('%Y-%m-%d %H:%M:%S') if user.get('created_at') else 'Unknown'
+                })
+            
+            # Get recent predictions (last 10)
+            recent_predictions = list(predictions_collection.find({}, {
+                'user_id': 1, 'animal_type': 1, 'prediction': 1, 'confidence': 1, 'created_at': 1
+            }).sort('created_at', -1).limit(10))
+            
+            for pred in recent_predictions:
+                # Get user info
+                user_info = users_collection.find_one({'_id': ObjectId(pred.get('user_id', ''))}, {'name': 1, 'email': 1}) if pred.get('user_id') else None
+                
+                stats['recent_predictions'].append({
+                    'animal_type': pred.get('animal_type', 'Unknown'),
+                    'prediction': pred.get('prediction', 'Unknown'),
+                    'confidence': f"{pred.get('confidence', 0)*100:.1f}%" if pred.get('confidence') else '0%',
+                    'user_name': user_info.get('name', 'Unknown') if user_info else 'Unknown',
+                    'created_at': pred.get('created_at', datetime.now()).strftime('%Y-%m-%d %H:%M:%S') if pred.get('created_at') else 'Unknown'
+                })
+            
+            # Get recent consultation requests (last 10)
+            recent_consultations = list(consultation_requests_collection.find({}, {
+                'farmer_name': 1, 'farmer_email': 1, 'animal_type': 1, 'status': 1, 'urgency': 1, 'created_at': 1
+            }).sort('created_at', -1).limit(10))
+            
+            for consult in recent_consultations:
+                stats['recent_consultations'].append({
+                    'farmer_name': consult.get('farmer_name', 'Unknown'),
+                    'farmer_email': consult.get('farmer_email', 'Unknown'),
+                    'animal_type': consult.get('animal_type', 'Unknown'),
+                    'status': consult.get('status', 'Unknown'),
+                    'urgency': consult.get('urgency', 'Unknown'),
+                    'created_at': consult.get('created_at', datetime.now()).strftime('%Y-%m-%d %H:%M:%S') if consult.get('created_at') else 'Unknown'
+                })
+        
+        # Create PDF
+        pdf_buffer = io.BytesIO()
+        doc = SimpleDocTemplate(pdf_buffer, pagesize=A4)
+        styles = getSampleStyleSheet()
+        story = []
+        
+        # Title
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Title'],
+            fontSize=24,
+            spaceAfter=30,
+            textColor=colors.Color(0.18, 0.55, 0.34)  # Green color
+        )
+        story.append(Paragraph("PashuAarogyam - Admin Dashboard Report", title_style))
+        story.append(Spacer(1, 20))
+        
+        # Date and time
+        current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        story.append(Paragraph(f"<b>Generated on:</b> {current_time}", styles['Normal']))
+        story.append(Spacer(1, 20))
+        
+        # Statistics Summary
+        stats_title = ParagraphStyle(
+            'StatsTitle',
+            parent=styles['Heading1'],
+            fontSize=18,
+            textColor=colors.Color(0.18, 0.55, 0.34)
+        )
+        story.append(Paragraph("System Statistics", stats_title))
+        story.append(Spacer(1, 10))
+        
+        # Stats table
+        stats_data = [
+            ['Metric', 'Count'],
+            ['Total Users', str(stats['total_users'])],
+            ['Active Consultants', str(stats['total_consultants'])],
+            ['Disease Predictions', str(stats['total_predictions'])],
+            ['Consultation Requests', str(stats['total_consultation_requests'])]
+        ]
+        
+        stats_table = Table(stats_data, colWidths=[3*inch, 2*inch])
+        stats_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.Color(0.18, 0.55, 0.34)),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 12),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black)
+        ]))
+        story.append(stats_table)
+        story.append(Spacer(1, 30))
+        
+        # Recent Users
+        if stats['recent_users']:
+            story.append(Paragraph("Recent Users", stats_title))
+            story.append(Spacer(1, 10))
+            
+            users_data = [['Name', 'Email', 'Joined Date']]
+            for user in stats['recent_users'][:5]:  # Show top 5
+                users_data.append([
+                    user['name'],
+                    user['email'],
+                    user['created_at']
+                ])
+            
+            users_table = Table(users_data, colWidths=[2*inch, 2.5*inch, 1.5*inch])
+            users_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.Color(0.18, 0.55, 0.34)),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 10),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black)
+            ]))
+            story.append(users_table)
+            story.append(Spacer(1, 20))
+        
+        # Recent Predictions
+        if stats['recent_predictions']:
+            story.append(Paragraph("Recent Disease Predictions", stats_title))
+            story.append(Spacer(1, 10))
+            
+            predictions_data = [['Animal Type', 'Prediction', 'Confidence', 'User', 'Date']]
+            for pred in stats['recent_predictions'][:5]:  # Show top 5
+                predictions_data.append([
+                    pred['animal_type'],
+                    pred['prediction'],
+                    pred['confidence'],
+                    pred['user_name'],
+                    pred['created_at']
+                ])
+            
+            predictions_table = Table(predictions_data, colWidths=[1*inch, 1.5*inch, 1*inch, 1.5*inch, 1*inch])
+            predictions_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.Color(0.18, 0.55, 0.34)),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 9),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black)
+            ]))
+            story.append(predictions_table)
+            story.append(Spacer(1, 20))
+        
+        # Recent Consultations
+        if stats['recent_consultations']:
+            story.append(Paragraph("Recent Consultation Requests", stats_title))
+            story.append(Spacer(1, 10))
+            
+            consultations_data = [['Farmer', 'Animal Type', 'Status', 'Urgency', 'Date']]
+            for consult in stats['recent_consultations'][:5]:  # Show top 5
+                consultations_data.append([
+                    consult['farmer_name'],
+                    consult['animal_type'],
+                    consult['status'],
+                    consult['urgency'],
+                    consult['created_at']
+                ])
+            
+            consultations_table = Table(consultations_data, colWidths=[1.5*inch, 1*inch, 1*inch, 1*inch, 1.5*inch])
+            consultations_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.Color(0.18, 0.55, 0.34)),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 9),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black)
+            ]))
+            story.append(consultations_table)
+        
+        # Build PDF
+        doc.build(story)
+        pdf_buffer.seek(0)
+        
+        # Create response
+        response = make_response(pdf_buffer.read())
+        response.headers['Content-Type'] = 'application/pdf'
+        response.headers['Content-Disposition'] = f'attachment; filename=PashuAarogyam_Admin_Report_{datetime.now().strftime("%Y%m%d_%H%M%S")}.pdf'
+        
+        pdf_buffer.close()
+        return response
+        
+    except Exception as e:
+        print(f"❌ PDF export error: {str(e)}")
+        print(f"Traceback: {traceback.format_exc()}")
+        flash('Error generating PDF report', 'error')
+        return redirect(url_for('admin_dashboard'))
+    return redirect(url_for('index'))
+
+
+@app.route('/admin/api/stats')
+def admin_api_stats():
+    """API endpoint for admin statistics"""
+    if 'admin_logged_in' not in session:
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 401
+    
+    try:
+        # Check if database is available
+        is_connected, status_msg = get_db_status()
+        if not is_connected:
+            return jsonify({
+                'success': False,
+                'message': f'Database not available: {status_msg}'
+            }), 503
+        
+        stats = {
+            'total_users': users_collection.count_documents({}),
+            'total_consultants': consultants_collection.count_documents({}),
+            'total_predictions': predictions_collection.count_documents({}),
+            'total_consultation_requests': consultation_requests_collection.count_documents({})
+        }
+        
+        return jsonify({'success': True, 'stats': stats})
+        
+    except Exception as e:
+        print(f"❌ Admin API stats error: {str(e)}")
+        return jsonify({'success': False, 'message': 'Error fetching statistics'}), 500
 
 @app.route('/predict_disease', methods=['POST'])
 def predict_disease():

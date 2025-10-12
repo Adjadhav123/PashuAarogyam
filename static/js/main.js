@@ -1,4 +1,4 @@
-// GoRakshaAI - Main JavaScript File
+// PashuAarogyam - Main JavaScript File
 
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize the application
@@ -420,7 +420,7 @@ window.printPrediction = function() {
     printWindow.document.write(`
         <html>
         <head>
-            <title>GoRakshaAI - Disease Prediction Report</title>
+            <title>PashuAarogyam - Disease Prediction Report</title>
             <style>
                 body { font-family: Arial, sans-serif; padding: 20px; line-height: 1.6; }
                 .header { text-align: center; margin-bottom: 30px; }
@@ -432,7 +432,7 @@ window.printPrediction = function() {
         </head>
         <body>
             <div class="header">
-                <h1>🐾 GoRakshaAI</h1>
+                <h1>🐾 PashuAarogyam</h1>
                 <h2>Disease Prediction Report</h2>
                 <p>Generated on ${new Date().toLocaleString()}</p>
             </div>

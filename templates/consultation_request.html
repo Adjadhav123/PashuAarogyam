@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Request Veterinary Consultation - GoRakshaAI</title>
+    <title>Request Veterinary Consultation - PashuAarogyam</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <style>
         .consultation-form-container {
@@ -893,7 +893,7 @@
         }
     </style>
 </head>
-<body>
+<body data-is-consultant="{% if is_consultant %}true{% else %}false{% endif %}"
     <!-- Chat Icon -->
     <div class="chat-icon" id="chatIcon" onclick="toggleChatModal()">
         <span class="chat-icon-text">💬</span>
@@ -943,7 +943,7 @@
     <!-- Header -->
     <header class="header">
         <nav class="nav-container">
-            <div class="logo">GoRakshaAI</div>
+            <div class="logo">PashuAarogyam</div>
             <ul class="nav-menu">
                 <li><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
                 <li><a href="{{ url_for('disease_detection') }}">Disease Detection</a></li>
@@ -951,7 +951,6 @@
             </ul>
             <div class="user-menu">
                 <div class="user-info">
-                    <div class="user-avatar">{{ user_name[0].upper() if user_name else 'U' }}</div>
                     <span class="user-name">{{ user_name.title() if user_name else 'User' }}</span>
                 </div>
             </div>
@@ -1020,9 +1019,10 @@
     </div>
 
     <script>
+        // Global variables
         let selectedUrgency = 'Medium';
         let selectedConsultant = undefined;  // Start as undefined, null means auto-assign
-        const isConsultant = {% if is_consultant %}true{% else %}false{% endif %};
+        const isConsultant = document.body.getAttribute('data-is-consultant') === 'true';
 
         // Load available consultants when page loads
         document.addEventListener('DOMContentLoaded', function() {

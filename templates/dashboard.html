@@ -3,17 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GoRakshaAI - Smart Animal Disease Prediction</title>
+    <title>PashuAarogyam - Smart Animal Disease Prediction</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
-    <meta name="description" content="GoRakshaAI provides smart animal disease prediction using advanced AI technology. Get instant health assessments and professional veterinary guidance.">
+    <meta name="description" content="PashuAarogyam provides smart animal disease prediction using advanced AI technology. Get instant health assessments and professional veterinary guidance.">
 </head>
 <body>
     <!-- Header -->
     <header class="header">
         <nav class="nav-container">
-            <div class="logo">GoRakshaAI</div>
+            <div class="logo">PashuAarogyam</div>
             <ul class="nav-menu">
                 <li><a href="#features">Features</a></li>
                 <li><a href="#knowledge">Animal Care Tips</a></li>
@@ -31,6 +31,8 @@
                     <div class="dropdown-divider"></div>
                     <a href="/consultant-login" class="dropdown-item">👨‍⚕️ Consultant Login</a>
                     <a href="/consultant-register" class="dropdown-item">📝 Register as Consultant</a>
+                    <div class="dropdown-divider"></div>
+                    <a href="/admin/login" class="dropdown-item">🛠️ Admin Panel</a>
                     <div class="dropdown-divider"></div>
                     <a href="{{ url_for('logout') }}" class="dropdown-item" onclick="return confirmLogout()">🚪 Logout</a>
                 </div>
@@ -255,7 +257,7 @@
                         <span class="contact-icon">📧</span>
                         <div>
                             <strong>Email</strong>
-                            <p>support@gorakshaai.com</p>
+                            <p>support@pashuaarogyam.com</p>
                         </div>
                     </div>
                     <div class="contact-item">
@@ -308,7 +310,7 @@
         <div class="container">
             <div class="footer-content">
                 <div class="footer-section">
-                    <div class="footer-logo">GoRakshaAI</div>
+                    <div class="footer-logo">PashuAarogyam</div>
                     <p>Revolutionizing animal healthcare with artificial intelligence. Providing smart, accurate, and accessible veterinary solutions for better animal welfare.</p>
                     <div class="social-links">
                         <a href="#" aria-label="Facebook">📘</a>
@@ -350,7 +352,7 @@
             </div>
             
             <div class="footer-bottom">
-                <p>&copy; 2025 GoRakshaAI. All rights reserved. | Empowering better animal healthcare through technology.</p>
+                <p>&copy; 2025 PashuAarogyam. All rights reserved. | Empowering better animal healthcare through technology.</p>
             </div>
         </div>
     </footer>
