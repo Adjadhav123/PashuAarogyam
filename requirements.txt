@@ -12,8 +12,8 @@ bcrypt
 dnspython
 certifi
 flask-session
-torch
-torchvision
+torch==2.2.2
+torchvision==0.17.2
 ultralytics
 opencv-python
 numpy
@@ -26,8 +26,5 @@ langchain-community
 SpeechRecognition
 pyttsx3
 PyPDF2
-python-magic-bin
-deep-translator
-requests
-httpcore
-gunicorn
+python-magic
+gunicorn  
