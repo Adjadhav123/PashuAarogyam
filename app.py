@@ -2619,14 +2619,59 @@ def send_consultation_message(request_id):
 @app.route('/api/consultation-requests/<request_id>', methods=['GET'])
 def get_consultation_request_details(request_id):
     """Get details of a specific consultation request"""
-    if 'consultant_id' not in session:
+    print(f"🔍 DEBUG: GET /api/consultation-requests/{request_id} called")
+    print(f"🔍 DEBUG: Session data: {dict(session)}")
+    
+    # Check if either consultant or farmer is logged in
+    if 'consultant_id' not in session and 'user_id' not in session:
+        print("❌ DEBUG: No consultant_id or user_id in session")
         return jsonify({'success': False, 'message': 'Unauthorized'}), 401
     
     try:
+        # Check if database collections are available
+        if not MONGODB_AVAILABLE or consultation_requests_collection is None or users_collection is None:
+            print("❌ DEBUG: Database not available")
+            return jsonify({'success': False, 'message': 'Database service unavailable'}), 503
+        
         consultation = consultation_requests_collection.find_one({'_id': ObjectId(request_id)})
         
         if not consultation:
+            print("❌ DEBUG: Consultation not found")
             return jsonify({'success': False, 'message': 'Consultation not found'}), 404
+        
+        # Verify access rights
+        has_access = False
+        
+        if 'consultant_id' in session:
+            # Consultant access - must be assigned to this consultation
+            has_access = consultation.get('assigned_to') == session['consultant_id']
+            print(f"🔍 DEBUG: Consultant access check - assigned_to: {consultation.get('assigned_to')}, consultant_id: {session['consultant_id']}")
+        elif 'user_id' in session:
+            # Farmer access - must be the consultation creator
+            try:
+                user = users_collection.find_one({'_id': ObjectId(session['user_id'])})
+                if user:
+                    has_access = (
+                        consultation.get('created_by_user_id') == session['user_id'] or
+                        consultation.get('farmer_email') == user.get('email', '') or
+                        consultation.get('contact_phone') == user.get('phone', '') or
+                        consultation.get('farmer_name') == user.get('name', '')
+                    )
+                    print(f"🔍 DEBUG: Farmer access check - created_by_user_id: {consultation.get('created_by_user_id')}, user_id: {session['user_id']}")
+                    print(f"🔍 DEBUG: Farmer access check - farmer_email: {consultation.get('farmer_email')}, user_email: {user.get('email', '')}")
+                else:
+                    print("❌ DEBUG: User not found in database")
+                    has_access = consultation.get('created_by_user_id') == session['user_id']
+            except Exception as user_error:
+                print(f"❌ DEBUG: Error fetching user data: {user_error}")
+                # Fallback to just checking user_id
+                has_access = consultation.get('created_by_user_id') == session['user_id']
+        
+        if not has_access:
+            print("❌ DEBUG: Access denied to consultation")
+            return jsonify({'success': False, 'message': 'You do not have access to this consultation'}), 403
+        
+        print("✅ DEBUG: Access granted to consultation details")
         
         # Convert ObjectId to string
         consultation['id'] = str(consultation['_id'])
@@ -2639,8 +2684,33 @@ def get_consultation_request_details(request_id):
         return jsonify({'success': True, 'consultation': consultation})
         
     except Exception as e:
-        print(f"Error getting consultation details: {e}")
+        print(f"❌ ERROR getting consultation details: {e}")
+        print(f"❌ ERROR type: {type(e).__name__}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'message': 'Failed to load consultation details'}), 500
+
+@app.route('/api/session-check', methods=['GET'])
+def check_session():
+    """Check current session status for debugging"""
+    print(f"🔍 DEBUG: Session check called")
+    print(f"🔍 DEBUG: Session data: {dict(session)}")
+    
+    session_info = {
+        'has_consultant_id': 'consultant_id' in session,
+        'has_user_id': 'user_id' in session,
+        'consultant_id': session.get('consultant_id'),
+        'user_id': session.get('user_id'),
+        'user_name': session.get('user_name'),
+        'consultant_name': session.get('consultant_name'),
+        'session_keys': list(session.keys())
+    }
+    
+    return jsonify({
+        'success': True, 
+        'message': 'Session check completed',
+        'session_info': session_info
+    })
 
 # ==============================================
 # FARMER API ROUTES (for creating consultation requests)

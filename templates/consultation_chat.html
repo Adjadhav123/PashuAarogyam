@@ -325,7 +325,7 @@
         }
     </style>
 </head>
-<body data-is-farmer="{% if is_farmer %}true{% else %}false{% endif %}"
+<body data-is-farmer="{% if is_farmer %}true{% else %}false{% endif %}">
     <div class="navbar">
         <div class="navbar-left">
             <button class="back-btn" onclick="goBack()">← Back</button>
@@ -377,29 +377,104 @@
         let messages = [];
         let pollingInterval;
         
-        console.log('🔍 DEBUG: Consultation ID:', consultationId);
+        console.log('🔍 DEBUG: Initial consultation ID:', consultationId);
+        console.log('🔍 DEBUG: User type:', userType);
+        
+        // Fallback - extract from URL if consultation ID is empty
+        if (!consultationId || consultationId === '') {
+            const pathParts = window.location.pathname.split('/');
+            const chatIndex = pathParts.indexOf('consultation-chat');
+            if (chatIndex >= 0 && pathParts[chatIndex + 1]) {
+                consultationId = pathParts[chatIndex + 1];
+                console.log('🔍 DEBUG: Extracted consultation ID from URL:', consultationId);
+            }
+        }
         console.log('🔍 DEBUG: User type:', userType);
 
         document.addEventListener('DOMContentLoaded', function() {
+            console.log('🔍 DEBUG: DOM loaded, initializing chat...');
+            checkSession();
             loadConsultationDetails();
             loadMessages();
             setupMessageInput();
             startPolling();
         });
 
-        async function loadConsultationDetails() {
+        async function checkSession() {
             try {
-                const response = await fetch(`/api/consultation-requests/${consultationId}`);
+                console.log('🔍 DEBUG: Checking session status...');
+                const response = await fetch('/api/session-check');
                 const data = await response.json();
-
-                if (data.success) {
-                    displayConsultationDetails(data.consultation);
-                } else {
-                    showError('Failed to load consultation details');
+                console.log('🔍 DEBUG: Session check result:', data);
+                
+                if (!data.session_info.has_consultant_id && !data.session_info.has_user_id) {
+                    console.error('❌ DEBUG: No valid session found!');
+                    showError('Session expired. Please login again.');
                 }
             } catch (error) {
-                console.error('Error loading consultation details:', error);
-                showError('Network error while loading consultation details');
+                console.error('❌ ERROR checking session:', error);
+            }
+        }
+
+        async function loadConsultationDetails() {
+            console.log('🔍 DEBUG: Starting loadConsultationDetails for ID:', consultationId);
+            
+            if (!consultationId) {
+                console.error('❌ DEBUG: No consultation ID available');
+                showError('No consultation ID provided');
+                return;
+            }
+            
+            try {
+                const url = `/api/consultation-requests/${consultationId}`;
+                console.log('🔍 DEBUG: Fetching consultation details from:', url);
+                
+                const response = await fetch(url);
+                console.log('🔍 DEBUG: Response status:', response.status);
+                console.log('🔍 DEBUG: Response headers:', Object.fromEntries(response.headers.entries()));
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('❌ DEBUG: Response not OK:', response.status, errorText);
+                    
+                    // Try to parse as JSON first
+                    let errorData;
+                    try {
+                        errorData = JSON.parse(errorText);
+                        console.error('❌ DEBUG: Error data:', errorData);
+                    } catch (parseError) {
+                        console.error('❌ DEBUG: Could not parse error response as JSON:', parseError);
+                        errorData = { message: errorText };
+                    }
+                    
+                    // Show more specific error message
+                    if (response.status === 401) {
+                        showError('Authentication failed. Please refresh the page and try again.');
+                    } else if (response.status === 403) {
+                        showError('Access denied. You do not have permission to view this consultation.');
+                    } else if (response.status === 404) {
+                        showError('Consultation not found.');
+                    } else {
+                        showError(`Server error (${response.status}): ${errorData.message || 'Unknown error'}`);
+                    }
+                    return;
+                }
+                
+                const data = await response.json();
+                console.log('🔍 DEBUG: Response data:', data);
+
+                if (data.success) {
+                    console.log('✅ DEBUG: Successfully loaded consultation details');
+                    displayConsultationDetails(data.consultation);
+                } else {
+                    console.error('❌ DEBUG: API returned error:', data.message);
+                    showError('Failed to load consultation details: ' + (data.message || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('❌ ERROR loading consultation details:', error);
+                console.error('❌ ERROR message:', error.message);
+                console.error('❌ ERROR stack:', error.stack);
+                showError('Network error while loading consultation details. Please check your connection and try again.');
             }
         }
 
