@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign Up - GoRakshaAI</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-card signup-card">
+            <div class="auth-header">
+                <div class="logo">
+                    <span class="logo-icon">🐾</span>
+                    <h1>GoRakshaAI</h1>
+                </div>
+                <p>Create your account</p>
+            </div>
+            
+            <form id="signupForm" class="auth-form">
+                <div class="form-group">
+                    <label for="name">Full Name</label>
+                    <input type="text" id="name" name="name" required>
+                    <div class="form-error" id="name-error"></div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="email">Email Address</label>
+                    <input type="email" id="email" name="email" required>
+                    <div class="form-error" id="email-error"></div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <div class="password-input">
+                        <input type="password" id="password" name="password" required>
+                        <button type="button" class="password-toggle" onclick="togglePassword('password')">
+                            <span id="password-toggle-icon">👁️</span>
+                        </button>
+                    </div>
+                    <div class="password-strength" id="password-strength">
+                        <div class="strength-meter">
+                            <div class="strength-fill"></div>
+                        </div>
+                        <div class="strength-text">Password strength</div>
+                    </div>
+                    <div class="form-error" id="password-error"></div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="confirmPassword">Confirm Password</label>
+                    <div class="password-input">
+                        <input type="password" id="confirmPassword" name="confirm_password" required>
+                        <button type="button" class="password-toggle" onclick="togglePassword('confirmPassword')">
+                            <span id="confirmPassword-toggle-icon">👁️</span>
+                        </button>
+                    </div>
+                    <div class="form-error" id="confirmPassword-error"></div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="terms" name="terms" required>
+                        <span class="checkmark"></span>
+                        I agree to the <a href="#" class="terms-link">Terms of Service</a> and <a href="#" class="terms-link">Privacy Policy</a>
+                    </label>
+                    <div class="form-error" id="terms-error"></div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="newsletter" name="newsletter">
+                        <span class="checkmark"></span>
+                        Subscribe to our newsletter for animal health tips and updates
+                    </label>
+                </div>
+                
+                <button type="submit" class="auth-button" id="signupButton">
+                    <span class="button-text">Create Account</span>
+                    <div class="button-spinner" style="display: none;">
+                        <div class="spinner"></div>
+                    </div>
+                </button>
+                
+                <div class="form-divider">
+                    <span>or</span>
+                </div>
+                
+                <div class="social-login">
+                    <button type="button" class="social-button google-button">
+                        <span class="social-icon">🔍</span>
+                        Sign up with Google
+                    </button>
+                    <button type="button" class="social-button facebook-button">
+                        <span class="social-icon">📘</span>
+                        Sign up with Facebook
+                    </button>
+                </div>
+                
+                <div class="auth-footer">
+                    <p>Already have an account? <a href="{{ url_for('login_page') }}">Sign in</a></p>
+                </div>
+            </form>
+            
+            <div class="alert" id="alertMessage" style="display: none;"></div>
+        </div>
+        
+        <div class="auth-background">
+            <div class="background-pattern"></div>
+            <div class="background-content">
+                <h2>Join GoRakshaAI</h2>
+                <p>Start protecting your animals with advanced AI technology. Monitor health, predict diseases, and get expert veterinary guidance.</p>
+                <div class="feature-highlights">
+                    <div class="feature-item">
+                        <span class="feature-icon">🤖</span>
+                        <span>AI-Powered Diagnostics</span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-icon">📱</span>
+                        <span>24/7 Monitoring</span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-icon">👨‍⚕️</span>
+                        <span>Expert Veterinary Support</span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-icon">📊</span>
+                        <span>Comprehensive Reports</span>
+                    </div>
+                </div>
+                
+                <div class="testimonial">
+                    <blockquote>
+                        "GoRakshaAI helped me detect diseases early and saved my livestock. The AI predictions are incredibly accurate!"
+                    </blockquote>
+                    <cite>- Farmer from Maharashtra</cite>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GoRakshaAI - Smart Animal Disease Prediction</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+    <meta name="description" content="GoRakshaAI provides smart animal disease prediction using advanced AI technology. Get instant health assessments and professional veterinary guidance.">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <nav class="nav-container">
+            <div class="logo">GoRakshaAI</div>
+            <ul class="nav-menu">
+                <li><a href="#features">Features</a></li>
+                <li><a href="#knowledge">Animal Care Tips</a></li>
+                <li><a href="#practices">Best Practices</a></li>
+                <li><a href="#contact">Contact</a></li>
+            </ul>
+            <div class="user-menu">
+                <div class="user-info" onclick="toggleUserDropdown()">
+                    <div class="user-avatar">{{ session['user_name'][0].upper() if session['user_name'] else 'U' }}</div>
+                    <span class="user-name">{{ session['user_name'].title() if session['user_name'] else 'User' }}</span>
+                    <span class="dropdown-arrow">▼</span>
+                </div>
+                <div class="user-dropdown" id="userDropdown">
+                    <a href="#" class="dropdown-item" onclick="showProfileModal()">👤 Profile</a>
+                    <div class="dropdown-divider"></div>
+                    <a href="/consultant-login" class="dropdown-item">👨‍⚕️ Consultant Login</a>
+                    <a href="/consultant-register" class="dropdown-item">📝 Register as Consultant</a>
+                    <div class="dropdown-divider"></div>
+                    <a href="{{ url_for('logout') }}" class="dropdown-item" onclick="return confirmLogout()">🚪 Logout</a>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-content">
+            <h1>Smart Animal Disease Prediction with AI</h1>
+            <p>Revolutionize your veterinary practices with our cutting-edge AI technology. Get precise disease predictions, health monitoring, treatment recommendations, and expert guidance for optimal animal care.</p>
+            <button class="btn btn-primary" onclick="window.location.href='{{ url_for('disease_detection') }}'">Start Disease Prediction</button>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features" id="features">
+        <div class="container">
+            <h2 class="section-title">Our Features</h2>
+            <div class="features-grid">
+                <div class="feature-card clickable" onclick="window.location.href='{{ url_for('consultation_request_page') }}'">
+                    <span class="feature-icon">👨‍⚕️</span>
+                    <h3>Veterinary Consultant</h3>
+                    <p>Connect with expert veterinarians and get professional advice for your animals' health and wellness.</p>
+                </div>
+
+                <div class="feature-card clickable" onclick="window.location.href='{{ url_for('disease_detection') }}'">
+                    <span class="feature-icon">🔬</span>
+                    <h3>Disease Detection</h3>
+                    <p>Upload photos or input symptoms to identify diseases instantly with our advanced AI diagnostic model.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <span class="feature-icon">📊</span>
+                    <h3>Health Monitoring</h3>
+                    <p>Track your animals' health metrics, vaccination schedules, and medical history in one comprehensive dashboard.</p>
+                </div>
+                
+                <div class="feature-card clickable" onclick="window.location.href='{{ url_for('chatbot_page') }}'">
+                    <span class="feature-icon">💬</span>
+                    <h3>AI Veterinary Assistant</h3>
+                    <p>24/7 multilingual support with voice input/output for all your animal health questions and emergencies.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <span class="feature-icon">🌡️</span>
+                    <h3>Health Alerts</h3>
+                    <p>Receive timely health notifications, vaccination reminders, and location-specific disease outbreak warnings.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <span class="feature-icon">🩺</span>
+                    <h3>Treatment Recommendations</h3>
+                    <p>Get personalized treatment plans and medication recommendations based on your animal's specific condition.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Knowledge Base Section -->
+    <section class="knowledge-base" id="knowledge">
+        <div class="container">
+            <h2 class="section-title">Animal Care Tips & Knowledge</h2>
+            <div class="knowledge-grid">
+                <div class="knowledge-card">
+                    <div class="knowledge-image">🐄</div>
+                    <div class="knowledge-content">
+                        <h3>Livestock Health Management</h3>
+                        <p>Healthy livestock is the foundation of successful farming. Regularly monitor your animals' behavior, appetite, and physical condition. Implement proper vaccination schedules and maintain clean living environments to prevent disease outbreaks.</p>
+                    </div>
+                </div>
+                
+                <div class="knowledge-card">
+                    <div class="knowledge-image">💧</div>
+                    <div class="knowledge-content">
+                        <h3>Water Quality & Hydration</h3>
+                        <p>Clean, fresh water is essential for animal health. Test water quality regularly and ensure adequate water supply for all animals. Poor water quality can lead to digestive issues, reduced milk production, and increased susceptibility to diseases.</p>
+                       
+                    </div>
+                </div>
+                
+                <div class="knowledge-card">
+                    <div class="knowledge-image">🦠</div>
+                    <div class="knowledge-content">
+                        <h3>Disease Prevention & Biosecurity</h3>
+                        <p>Implement comprehensive biosecurity measures to protect your animals from infectious diseases. This includes controlling access to facilities, proper disinfection protocols, and quarantine procedures for new animals.</p>
+                        
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Best Practices Section -->
+    <section class="best-practices" id="practices">
+        <div class="container">
+            <h2 class="section-title">Best Animal Care Practices</h2>
+            <p style="text-align: center; font-size: 1.1rem; margin-bottom: 3rem; color: #666;">
+                Implementing these best practices can improve animal health and welfare while reducing veterinary costs.
+            </p>
+            <div class="practices-grid">
+                <div class="practice-card">
+                    <span class="practice-icon">🔄</span>
+                    <h3>Regular Health Checkups</h3>
+                    <p>Schedule routine veterinary examinations for early disease detection. Regular checkups can identify health issues before they become serious problems. Maintain detailed health records and follow recommended vaccination schedules for optimal protection.</p>
+                </div>
+                
+                <div class="practice-card">
+                    <span class="practice-icon">🥗</span>
+                    <h3>Nutrition Management</h3>
+                    <p>Provide balanced, species-appropriate nutrition tailored to each animal's age, weight, and activity level. Monitor body condition regularly and adjust feeding programs as needed. Quality nutrition supports immune function and overall health.</p>
+                </div>
+                
+                <div class="practice-card">
+                    <span class="practice-icon">🏠</span>
+                    <h3>Housing & Environment</h3>
+                    <p>Maintain clean, well-ventilated housing with appropriate space for each animal. Regular cleaning and disinfection prevent disease transmission. Ensure proper temperature control and protection from harsh weather conditions.</p>
+                </div>
+                
+                <div class="practice-card">
+                    <span class="practice-icon">♻️</span>
+                    <h3>Sustainable Practices</h3>
+                    <p>Implement eco-friendly animal care practices that promote long-term sustainability. This includes responsible waste management, efficient resource use, and maintaining biodiversity in farming systems.</p>
+                </div>
+                
+                <div class="practice-card">
+                    <span class="practice-icon">🌿</span>
+                    <h3>Natural Health Support</h3>
+                    <p>Incorporate natural health support methods such as herbal supplements, proper exercise, and stress reduction techniques. These approaches complement traditional veterinary care and promote overall animal wellness.</p>
+                </div>
+                
+                <div class="practice-card">
+                    <span class="practice-icon">🔄</span>
+                    <h3>Technology Integration</h3>
+                    <p>Leverage modern technology for health monitoring, record keeping, and early disease detection. Digital tools can help track health trends, medication schedules, and provide data-driven insights for better animal care decisions.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Statistics Section -->
+    <section class="statistics">
+        <div class="container">
+            <h2 class="section-title" style="color: white;">Our Impact</h2>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number">10,000+</div>
+                    <div class="stat-label">Animals Diagnosed</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">95%</div>
+                    <div class="stat-label">Accuracy Rate</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">500+</div>
+                    <div class="stat-label">Veterinarians</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">24/7</div>
+                    <div class="stat-label">AI Support</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Testimonials Section -->
+    <section class="testimonials">
+        <div class="container">
+            <h2 class="section-title">What Our Users Say</h2>
+            <div class="testimonials-grid">
+                <div class="testimonial-card">
+                    <div class="testimonial-content">
+                        <p>"VetCare AI has revolutionized how I manage my livestock. The early disease detection has saved me thousands in veterinary bills and prevented major outbreaks."</p>
+                    </div>
+                    <div class="testimonial-author">
+                        <div class="author-avatar">👨‍🌾</div>
+                        <div class="author-info">
+                            <div class="author-name">John Smith</div>
+                            <div class="author-title">Cattle Ranch Owner</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="testimonial-card">
+                    <div class="testimonial-content">
+                        <p>"As a veterinarian, this tool helps me provide better care to my patients. The AI predictions are remarkably accurate and help in differential diagnosis."</p>
+                    </div>
+                    <div class="testimonial-author">
+                        <div class="author-avatar">👩‍⚕️</div>
+                        <div class="author-info">
+                            <div class="author-name">Dr. Sarah Johnson</div>
+                            <div class="author-title">Veterinarian</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="testimonial-card">
+                    <div class="testimonial-content">
+                        <p>"The 24/7 AI assistant is incredibly helpful for emergency situations. It's like having a vet on call at all times for my farm animals."</p>
+                    </div>
+                    <div class="testimonial-author">
+                        <div class="author-avatar">👨‍🏭</div>
+                        <div class="author-info">
+                            <div class="author-name">Mike Brown</div>
+                            <div class="author-title">Dairy Farmer</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact Section -->
+    <section class="contact" id="contact">
+        <div class="container">
+            <h2 class="section-title">Get in Touch</h2>
+            <div class="contact-grid">
+                <div class="contact-info">
+                    <h3>Contact Information</h3>
+                    <div class="contact-item">
+                        <span class="contact-icon">📧</span>
+                        <div>
+                            <strong>Email</strong>
+                            <p>support@gorakshaai.com</p>
+                        </div>
+                    </div>
+                    <div class="contact-item">
+                        <span class="contact-icon">📱</span>
+                        <div>
+                            <strong>Phone</strong>
+                            <p>+1 (555) 123-4567</p>
+                        </div>
+                    </div>
+                    <div class="contact-item">
+                        <span class="contact-icon">📍</span>
+                        <div>
+                            <strong>Address</strong>
+                            <p>123 Veterinary Street<br>Medical City, MC 12345</p>
+                        </div>
+                    </div>
+                    <div class="contact-item">
+                        <span class="contact-icon">🕒</span>
+                        <div>
+                            <strong>Support Hours</strong>
+                            <p>24/7 AI Support<br>Human Support: 9 AM - 6 PM EST</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="contact-form">
+                    <h3>Send us a Message</h3>
+                    <form id="contactForm">
+                        <div class="form-group">
+                            <input type="text" name="name" placeholder="Your Name" required>
+                        </div>
+                        <div class="form-group">
+                            <input type="email" name="email" placeholder="Your Email" required>
+                        </div>
+                        <div class="form-group">
+                            <input type="text" name="subject" placeholder="Subject" required>
+                        </div>
+                        <div class="form-group">
+                            <textarea name="message" rows="5" placeholder="Your Message" required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Send Message</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <div class="footer-logo">GoRakshaAI</div>
+                    <p>Revolutionizing animal healthcare with artificial intelligence. Providing smart, accurate, and accessible veterinary solutions for better animal welfare.</p>
+                    <div class="social-links">
+                        <a href="#" aria-label="Facebook">📘</a>
+                        <a href="#" aria-label="Twitter">🐦</a>
+                        <a href="#" aria-label="LinkedIn">💼</a>
+                        <a href="#" aria-label="Instagram">📸</a>
+                    </div>
+                </div>
+                
+                <div class="footer-section">
+                    <h4>Services</h4>
+                    <ul>
+                        <li><a href="#">Disease Prediction</a></li>
+                        <li><a href="#">Health Monitoring</a></li>
+                        <li><a href="#">Veterinary Consultation</a></li>
+                        <li><a href="#">AI Assistant</a></li>
+                    </ul>
+                </div>
+                
+                <div class="footer-section">
+                    <h4>Resources</h4>
+                    <ul>
+                        <li><a href="#">Animal Care Tips</a></li>
+                        <li><a href="#">Best Practices</a></li>
+                        <li><a href="#">Disease Database</a></li>
+                        <li><a href="#">Training Materials</a></li>
+                    </ul>
+                </div>
+                
+                <div class="footer-section">
+                    <h4>Company</h4>
+                    <ul>
+                        <li><a href="#">About Us</a></li>
+                        <li><a href="#">Privacy Policy</a></li>
+                        <li><a href="#">Terms of Service</a></li>
+                        <li><a href="#">Contact</a></li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="footer-bottom">
+                <p>&copy; 2025 GoRakshaAI. All rights reserved. | Empowering better animal healthcare through technology.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Profile Modal -->
+    <div class="modal" id="profileModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>👤 Profile Options</h3>
+                <span class="close" onclick="closeProfileModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="profile-options">
+                    <div class="profile-option-card" onclick="window.location.href='/consultant-login'">
+                        <div class="option-icon">👨‍⚕️</div>
+                        <h4>Consultant Login</h4>
+                        <p>Login to your veterinary consultant account to view and manage consultation requests</p>
+                        <button class="btn btn-primary">Login as Consultant</button>
+                    </div>
+                    
+                    <div class="profile-option-card" onclick="window.location.href='/consultant-register'">
+                        <div class="option-icon">📝</div>
+                        <h4>Become a Consultant</h4>
+                        <p>Join our platform as a veterinary consultant and help farmers with animal health issues</p>
+                        <button class="btn btn-secondary">Register as Consultant</button>
+                    </div>
+                    
+                    <div class="profile-option-card">
+                        <div class="option-icon">⚙️</div>
+                        <h4>Account Settings</h4>
+                        <p>Manage your account preferences, notification settings, and personal information</p>
+                        <button class="btn btn-outline">Coming Soon</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize page when DOM is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            initializePage();
+        });
+
+        function initializePage() {
+            // User dropdown toggle functionality
+            setupUserDropdown();
+            
+            // Setup form handlers
+            setupContactForm();
+            
+            // Setup smooth scrolling
+            setupSmoothScrolling();
+            
+            // Setup feature card interactions
+            setupFeatureCards();
+        }
+
+        // User dropdown functionality
+        function setupUserDropdown() {
+            // Close dropdown when clicking outside
+            document.addEventListener('click', function(e) {
+                if (!e.target.closest('.user-menu')) {
+                    const dropdown = document.getElementById('userDropdown');
+                    if (dropdown) {
+                        dropdown.classList.remove('show');
+                    }
+                }
+            });
+        }
+
+        function toggleUserDropdown() {
+            const dropdown = document.getElementById('userDropdown');
+            if (dropdown) {
+                dropdown.classList.toggle('show');
+            }
+        }
+
+        // Confirm logout function
+        function confirmLogout() {
+            return confirm('Are you sure you want to logout?');
+        }
+
+        // Setup contact form
+        function setupContactForm() {
+            const contactForm = document.getElementById('contactForm');
+            if (contactForm) {
+                contactForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    
+                    // Get form data
+                    const formData = new FormData(this);
+                    const data = {
+                        name: formData.get('name'),
+                        email: formData.get('email'),
+                        subject: formData.get('subject'),
+                        message: formData.get('message')
+                    };
+                    
+                    // Simple validation
+                    if (!data.name || !data.email || !data.subject || !data.message) {
+                        showNotification('Please fill in all fields.', 'error');
+                        return;
+                    }
+                    
+                    // Email validation
+                    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                    if (!emailRegex.test(data.email)) {
+                        showNotification('Please enter a valid email address.', 'error');
+                        return;
+                    }
+                    
+                    // Show success message (implement actual form submission later)
+                    showNotification('Thank you for your message! We will get back to you soon.', 'success');
+                    this.reset();
+                });
+            }
+        }
+
+        // Setup smooth scrolling for navigation links
+        function setupSmoothScrolling() {
+            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+                anchor.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    const target = document.querySelector(this.getAttribute('href'));
+                    if (target) {
+                        target.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'start'
+                        });
+                    }
+                });
+            });
+        }
+
+        // Setup feature card interactions
+        function setupFeatureCards() {
+            document.querySelectorAll('.feature-card.clickable').forEach(card => {
+                card.addEventListener('click', function(e) {
+                    // Prevent double-click issues
+                    if (e.detail > 1) {
+                        e.preventDefault();
+                        return;
+                    }
+                    
+                    // Add loading state
+                    this.style.opacity = '0.7';
+                    this.style.pointerEvents = 'none';
+                    
+                    // Reset after a short delay if navigation doesn't happen
+                    setTimeout(() => {
+                        this.style.opacity = '1';
+                        this.style.pointerEvents = 'auto';
+                    }, 2000);
+                });
+            });
+        }
+
+        // Enhanced notification system
+        function showNotification(message, type = 'info') {
+            const notification = createNotification(message, type);
+            document.body.appendChild(notification);
+        }
+
+        function createNotification(message, type) {
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 15px 20px;
+                border-radius: 8px;
+                color: white;
+                font-weight: 600;
+                z-index: 10000;
+                max-width: 400px;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+                transform: translateX(100%);
+                transition: transform 0.3s ease;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            `;
+            
+            // Set background color based on type
+            switch(type) {
+                case 'error':
+                    notification.style.background = 'linear-gradient(135deg, #d32f2f, #f44336)';
+                    break;
+                case 'success':
+                    notification.style.background = 'linear-gradient(135deg, #388e3c, #4caf50)';
+                    break;
+                case 'warning':
+                    notification.style.background = 'linear-gradient(135deg, #f57c00, #ff9800)';
+                    break;
+                default:
+                    notification.style.background = 'linear-gradient(135deg, #1976d2, #2196f3)';
+            }
+            
+            notification.textContent = message;
+            
+            // Animate in
+            setTimeout(() => {
+                notification.style.transform = 'translateX(0)';
+            }, 100);
+            
+            // Auto remove after 5 seconds
+            setTimeout(() => {
+                notification.style.transform = 'translateX(100%)';
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 300);
+            }, 5000);
+            
+            // Allow manual dismissal by clicking
+            notification.addEventListener('click', function() {
+                this.style.transform = 'translateX(100%)';
+                setTimeout(() => {
+                    if (this.parentNode) {
+                        this.parentNode.removeChild(this);
+                    }
+                }, 300);
+            });
+            
+            return notification;
+        }
+
+        // Error handling for missing elements
+        function safeElementOperation(elementId, operation) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                operation(element);
+            } else {
+                console.warn(`Element with ID '${elementId}' not found`);
+            }
+        }
+
+        // Profile modal functions
+        function showProfileModal() {
+            const modal = document.getElementById('profileModal');
+            if (modal) {
+                modal.style.display = 'block';
+                document.body.style.overflow = 'hidden'; // Prevent background scrolling
+            }
+        }
+
+        function closeProfileModal() {
+            const modal = document.getElementById('profileModal');
+            if (modal) {
+                modal.style.display = 'none';
+                document.body.style.overflow = 'auto'; // Restore scrolling
+            }
+        }
+
+        // Close modal when clicking outside
+        window.addEventListener('click', function(e) {
+            const modal = document.getElementById('profileModal');
+            if (e.target === modal) {
+                closeProfileModal();
+            }
+        });
+
+        // Consultant action handlers
+        function goToConsultantLogin() {
+            window.location.href = '/consultant/login';
+        }
+
+        function goToConsultantRegister() {
+            window.location.href = '/consultant/register';
+        }
+
+        // Global error handler
+        window.addEventListener('error', function(e) {
+            console.error('Dashboard error:', e.error);
+            // Don't show user-facing errors for JavaScript errors in production
+        });
+    </script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

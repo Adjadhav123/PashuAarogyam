@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GoRakshaAI - Smart Animal Disease Prediction</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+    <meta name="description" content="GoRakshaAI provides smart animal disease prediction using advanced AI technology. Get instant health assessments and professional veterinary guidance.">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <nav class="nav-container">
+            <div class="logo">GoRakshaAI</div>
+            <ul class="nav-menu">
+                <li><a href="#features">Features</a></li>
+                <li><a href="#knowledge">Animal Care Tips</a></li>
+                <li><a href="#practices">Best Practices</a></li>
+                <li><a href="#contact">Contact</a></li>
+            </ul>
+            <div class="auth-buttons">
+                <a href="{{ url_for('login_page') }}" class="btn btn-login">Login</a>
+                <a href="{{ url_for('signup_page') }}" class="btn btn-signup">Sign Up</a>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-content">
+            <h1>Smart Animal Disease Prediction with AI</h1>
+            <p>Revolutionize your veterinary practices with our cutting-edge AI technology. Get precise disease predictions, health monitoring, treatment recommendations, and expert guidance for optimal animal care.</p>
+            <button class="btn btn-primary" onclick="openPredictionModal()">Start Disease Prediction</button>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features" id="features">
+        <div class="container">
+            <h2 class="section-title">Our Features</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <span class="feature-icon">👨‍⚕️</span>
+                    <h3>Veterinary Consultant</h3>
+                    <p>Connect with expert veterinarians and get professional advice for your animals' health and wellness.</p>
+                    <div class="auth-buttons">
+                        <a href="/consultant-login" class="btn btn-login">Consultant Login</a>
+                        <a href="/consultant-register" class="btn btn-signup">Join as Consultant</a>
+                    </div>
+                    <p style="margin-top: 10px; font-size: 12px; color: #666;">For farmers: Create consultation requests through your dashboard</p>
+                </div>
+                
+                <div class="feature-card">
+                    <span class="feature-icon">🔬</span>
+                    <h3>Disease Detection</h3>
+                    <p>Upload photos or input symptoms to identify diseases instantly with our advanced AI diagnostic model.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <span class="feature-icon">📊</span>
+                    <h3>Health Monitoring</h3>
+                    <p>Track your animals' health metrics, vaccination schedules, and medical history in one comprehensive dashboard.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <span class="feature-icon">💬</span>
+                    <h3>AI Veterinary Assistant</h3>
+                    <p>24/7 multilingual support with voice input/output for all your animal health questions and emergencies.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <span class="feature-icon">🌡️</span>
+                    <h3>Health Alerts</h3>
+                    <p>Receive timely health notifications, vaccination reminders, and location-specific disease outbreak warnings.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <span class="feature-icon">🩺</span>
+                    <h3>Treatment Recommendations</h3>
+                    <p>Get personalized treatment plans and medication recommendations based on your animal's specific condition.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Knowledge Base Section -->
+    <section class="knowledge-base" id="knowledge">
+        <div class="container">
+            <h2 class="section-title">Animal Care Tips & Knowledge</h2>
+            <div class="knowledge-grid">
+                <div class="knowledge-card">
+                    <div class="knowledge-image">🐄</div>
+                    <div class="knowledge-content">
+                        <h3>Livestock Health Management</h3>
+                        <p>Healthy livestock is the foundation of successful farming. Regularly monitor your animals' behavior, appetite, and physical condition. Implement proper vaccination schedules and maintain clean living environments to prevent disease outbreaks.</p>
+                        <p>Ensure adequate nutrition with balanced feed, provide fresh water daily, and maintain proper ventilation in housing facilities. Regular health checkups can detect issues early and prevent costly treatments.</p>
+                    </div>
+                </div>
+                
+                <div class="knowledge-card">
+                    <div class="knowledge-image">💧</div>
+                    <div class="knowledge-content">
+                        <h3>Water Quality & Hydration</h3>
+                        <p>Clean, fresh water is essential for animal health. Test water quality regularly and ensure adequate water supply for all animals. Poor water quality can lead to digestive issues, reduced milk production, and increased susceptibility to diseases.</p>
+                        <p>Install proper water systems with regular cleaning schedules. Monitor water consumption patterns as changes can indicate health problems. Consider water treatment systems in areas with contaminated sources.</p>
+                    </div>
+                </div>
+                
+                <div class="knowledge-card">
+                    <div class="knowledge-image">🦠</div>
+                    <div class="knowledge-content">
+                        <h3>Disease Prevention & Biosecurity</h3>
+                        <p>Implement comprehensive biosecurity measures to protect your animals from infectious diseases. This includes controlling access to facilities, proper disinfection protocols, and quarantine procedures for new animals.</p>
+                        <p>Regular health screenings, vaccination programs, and maintaining detailed health records are crucial. Work with veterinarians to develop preventive health programs tailored to your specific animal populations and local disease risks.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Best Practices Section -->
+    <section class="best-practices" id="practices">
+        <div class="container">
+            <h2 class="section-title">Best Animal Care Practices</h2>
+            <p style="text-align: center; font-size: 1.1rem; margin-bottom: 3rem; color: #666;">
+                Implementing these best practices can improve animal health and welfare while reducing veterinary costs.
+            </p>
+            <div class="practices-grid">
+                <div class="practice-card">
+                    <span class="practice-icon">🔄</span>
+                    <h3>Regular Health Checkups</h3>
+                    <p>Schedule routine veterinary examinations for early disease detection. Regular checkups can identify health issues before they become serious problems. Maintain detailed health records and follow recommended vaccination schedules for optimal protection.</p>
+                </div>
+                
+                <div class="practice-card">
+                    <span class="practice-icon">🥗</span>
+                    <h3>Nutrition Management</h3>
+                    <p>Provide balanced, species-appropriate nutrition tailored to each animal's age, weight, and activity level. Monitor body condition regularly and adjust feeding programs as needed. Quality nutrition supports immune function and overall health.</p>
+                </div>
+                
+                <div class="practice-card">
+                    <span class="practice-icon">🏠</span>
+                    <h3>Housing & Environment</h3>
+                    <p>Maintain clean, well-ventilated housing with appropriate space for each animal. Regular cleaning and disinfection prevent disease transmission. Ensure proper temperature control and protection from harsh weather conditions.</p>
+                </div>
+                
+                <div class="practice-card">
+                    <span class="practice-icon">♻️</span>
+                    <h3>Sustainable Practices</h3>
+                    <p>Implement eco-friendly animal care practices that promote long-term sustainability. This includes responsible waste management, efficient resource use, and maintaining biodiversity in farming systems.</p>
+                </div>
+                
+                <div class="practice-card">
+                    <span class="practice-icon">🌿</span>
+                    <h3>Natural Health Support</h3>
+                    <p>Incorporate natural health support methods such as herbal supplements, proper exercise, and stress reduction techniques. These approaches complement traditional veterinary care and promote overall animal wellness.</p>
+                </div>
+                
+                <div class="practice-card">
+                    <span class="practice-icon">🔄</span>
+                    <h3>Technology Integration</h3>
+                    <p>Leverage modern technology for health monitoring, record keeping, and early disease detection. Digital tools can help track health trends, medication schedules, and provide data-driven insights for better animal care decisions.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Statistics Section -->
+    <section class="statistics">
+        <div class="container">
+            <h2 class="section-title">Our Impact</h2>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number">10,000+</div>
+                    <div class="stat-label">Animals Diagnosed</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">95%</div>
+                    <div class="stat-label">Accuracy Rate</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">500+</div>
+                    <div class="stat-label">Veterinarians</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">24/7</div>
+                    <div class="stat-label">AI Support</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Testimonials Section -->
+    <section class="testimonials">
+        <div class="container">
+            <h2 class="section-title">What Our Users Say</h2>
+            <div class="testimonials-grid">
+                <div class="testimonial-card">
+                    <div class="testimonial-content">
+                        <p>"VetCare AI has revolutionized how I manage my livestock. The early disease detection has saved me thousands in veterinary bills and prevented major outbreaks."</p>
+                    </div>
+                    <div class="testimonial-author">
+                        <div class="author-avatar">👨‍🌾</div>
+                        <div class="author-info">
+                            <div class="author-name">John Smith</div>
+                            <div class="author-title">Cattle Ranch Owner</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="testimonial-card">
+                    <div class="testimonial-content">
+                        <p>"As a veterinarian, this tool helps me provide better care to my patients. The AI predictions are remarkably accurate and help in differential diagnosis."</p>
+                    </div>
+                    <div class="testimonial-author">
+                        <div class="author-avatar">👩‍⚕️</div>
+                        <div class="author-info">
+                            <div class="author-name">Dr. Sarah Johnson</div>
+                            <div class="author-title">Veterinarian</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="testimonial-card">
+                    <div class="testimonial-content">
+                        <p>"The 24/7 AI assistant is incredibly helpful for emergency situations. It's like having a vet on call at all times for my farm animals."</p>
+                    </div>
+                    <div class="testimonial-author">
+                        <div class="author-avatar">👨‍🏭</div>
+                        <div class="author-info">
+                            <div class="author-name">Mike Brown</div>
+                            <div class="author-title">Dairy Farmer</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact Section -->
+    <section class="contact" id="contact">
+        <div class="container">
+            <h2 class="section-title">Get in Touch</h2>
+            <div class="contact-grid">
+                <div class="contact-info">
+                    <h3>Contact Information</h3>
+                    <div class="contact-item">
+                        <span class="contact-icon">📧</span>
+                        <div>
+                            <strong>Email</strong>
+                            <p>support@gorakshaai.com</p>
+                        </div>
+                    </div>
+                    <div class="contact-item">
+                        <span class="contact-icon">📱</span>
+                        <div>
+                            <strong>Phone</strong>
+                            <p>+1 (555) 123-4567</p>
+                        </div>
+                    </div>
+                    <div class="contact-item">
+                        <span class="contact-icon">📍</span>
+                        <div>
+                            <strong>Address</strong>
+                            <p>123 Veterinary Street<br>Medical City, MC 12345</p>
+                        </div>
+                    </div>
+                    <div class="contact-item">
+                        <span class="contact-icon">🕒</span>
+                        <div>
+                            <strong>Support Hours</strong>
+                            <p>24/7 AI Support<br>Human Support: 9 AM - 6 PM EST</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="contact-form">
+                    <h3>Send us a Message</h3>
+                    <form id="contactForm">
+                        <div class="form-group">
+                            <input type="text" name="name" placeholder="Your Name" required>
+                        </div>
+                        <div class="form-group">
+                            <input type="email" name="email" placeholder="Your Email" required>
+                        </div>
+                        <div class="form-group">
+                            <input type="text" name="subject" placeholder="Subject" required>
+                        </div>
+                        <div class="form-group">
+                            <textarea name="message" rows="5" placeholder="Your Message" required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Send Message</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <div class="footer-logo">GoRakshaAI</div>
+                    <p>Revolutionizing animal healthcare with artificial intelligence. Providing smart, accurate, and accessible veterinary solutions for better animal welfare.</p>
+                    <div class="social-links">
+                        <a href="#" aria-label="Facebook">📘</a>
+                        <a href="#" aria-label="Twitter">🐦</a>
+                        <a href="#" aria-label="LinkedIn">💼</a>
+                        <a href="#" aria-label="Instagram">📸</a>
+                    </div>
+                </div>
+                
+                <div class="footer-section">
+                    <h4>Services</h4>
+                    <ul>
+                        <li><a href="#">Disease Prediction</a></li>
+                        <li><a href="#">Health Monitoring</a></li>
+                        <li><a href="#">Veterinary Consultation</a></li>
+                        <li><a href="#">AI Assistant</a></li>
+                    </ul>
+                </div>
+                
+                <div class="footer-section">
+                    <h4>Resources</h4>
+                    <ul>
+                        <li><a href="#">Animal Care Tips</a></li>
+                        <li><a href="#">Best Practices</a></li>
+                        <li><a href="#">Disease Database</a></li>
+                        <li><a href="#">Training Materials</a></li>
+                    </ul>
+                </div>
+                
+                <div class="footer-section">
+                    <h4>Company</h4>
+                    <ul>
+                        <li><a href="#">About Us</a></li>
+                        <li><a href="#">Privacy Policy</a></li>
+                        <li><a href="#">Terms of Service</a></li>
+                        <li><a href="#">Contact</a></li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="footer-bottom">
+                <p>&copy; 2025 GoRakshaAI. All rights reserved. | Empowering better animal healthcare through technology.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Disease Prediction Modal -->
+    <div id="predictionModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2 style="color: #2E8B57; margin-bottom: 2rem;">Animal Disease Prediction</h2>
+            
+            <form id="predictionForm">
+                <div class="form-group">
+                    <label for="animalType">Animal Type:</label>
+                    <select id="animalType" name="animal_type" required>
+                        <option value="">Select Animal Type</option>
+                        <option value="cattle">Cattle</option>
+                        <option value="pig">Pig</option>
+                        <option value="chicken">Chicken</option>
+                        <option value="sheep">Sheep</option>
+                        <option value="goat">Goat</option>
+                        <option value="horse">Horse</option>
+                        <option value="dog">Dog</option>
+                        <option value="cat">Cat</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="symptoms">Symptoms (check all that apply):</label>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem; margin-top: 0.5rem;">
+                        <label><input type="checkbox" name="symptoms" value="fever"> Fever</label>
+                        <label><input type="checkbox" name="symptoms" value="lethargy"> Lethargy</label>
+                        <label><input type="checkbox" name="symptoms" value="loss_of_appetite"> Loss of Appetite</label>
+                        <label><input type="checkbox" name="symptoms" value="coughing"> Coughing</label>
+                        <label><input type="checkbox" name="symptoms" value="diarrhea"> Diarrhea</label>
+                        <label><input type="checkbox" name="symptoms" value="vomiting"> Vomiting</label>
+                        <label><input type="checkbox" name="symptoms" value="difficulty_breathing"> Difficulty Breathing</label>
+                        <label><input type="checkbox" name="symptoms" value="skin_lesions"> Skin Lesions</label>
+                        <label><input type="checkbox" name="symptoms" value="lameness"> Lameness</label>
+                        <label><input type="checkbox" name="symptoms" value="discharge"> Nasal/Eye Discharge</label>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="age">Age (in years):</label>
+                    <input type="number" id="age" name="age" min="0" max="30" step="0.1">
+                </div>
+                
+                <div class="form-group">
+                    <label for="weight">Weight (in kg):</label>
+                    <input type="number" id="weight" name="weight" min="0" step="0.1">
+                </div>
+                
+                <div class="form-group">
+                    <label for="temperature">Body Temperature (°C):</label>
+                    <input type="number" id="temperature" name="temperature" min="35" max="45" step="0.1">
+                </div>
+                
+                <div class="form-group">
+                    <label for="additionalInfo">Additional Information:</label>
+                    <textarea id="additionalInfo" name="additional_info" rows="3" placeholder="Any other symptoms or observations..."></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label>Upload Animal Photo (Optional):</label>
+                    <div class="file-upload" onclick="document.getElementById('photoUpload').click()">
+                        <p>📷 Click to upload photo</p>
+                        <small>Supported formats: JPG, PNG, WebP</small>
+                    </div>
+                    <input type="file" id="photoUpload" name="photo" accept="image/*" style="display: none;" onchange="handleFileUpload(this)">
+                </div>
+                
+                <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">
+                    Predict Disease
+                </button>
+            </form>
+            
+            <div class="loading">
+                <div class="spinner"></div>
+                <p>Analyzing symptoms and predicting possible diseases...</p>
+            </div>
+            
+            <div id="predictionResult" class="prediction-result" style="display: none;">
+                <h3>Prediction Results:</h3>
+                <div id="resultContent"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

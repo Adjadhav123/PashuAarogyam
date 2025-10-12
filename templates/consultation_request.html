@@ -1,0 +1,1698 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Request Veterinary Consultation - GoRakshaAI</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .consultation-form-container {
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 0 20px;
+        }
+
+        .form-header {
+            text-align: center;
+            margin-bottom: 40px;
+            background: linear-gradient(135deg, #2E8B57, #3CB371);
+            color: white;
+            padding: 30px 20px;
+            border-radius: 15px;
+        }
+
+        .form-header h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .form-header p {
+            font-size: 18px;
+            opacity: 0.9;
+        }
+
+        .consultation-form {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+
+        .form-section {
+            margin-bottom: 35px;
+        }
+
+        .form-section h3 {
+            color: #2E8B57;
+            font-size: 20px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 10px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            font-family: inherit;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 120px;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #2E8B57;
+            box-shadow: 0 0 0 3px rgba(46, 139, 87, 0.1);
+        }
+
+        .required {
+            color: #d32f2f;
+        }
+
+        .urgency-selector {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-top: 10px;
+        }
+
+        .urgency-option {
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .urgency-option.selected {
+            border-color: #2E8B57;
+            background: #f0f8ff;
+        }
+
+        .urgency-option.high {
+            border-color: #ff5722;
+        }
+
+        .urgency-option.high.selected {
+            background: #ffebee;
+            border-color: #d32f2f;
+        }
+
+        .urgency-option.medium {
+            border-color: #ff9800;
+        }
+
+        .urgency-option.medium.selected {
+            background: #fff3e0;
+            border-color: #f57c00;
+        }
+
+        .urgency-option.low {
+            border-color: #4caf50;
+        }
+
+        .urgency-option.low.selected {
+            background: #e8f5e8;
+            border-color: #388e3c;
+        }
+
+        .urgency-label {
+            font-weight: 600;
+            font-size: 16px;
+            margin-bottom: 5px;
+        }
+
+        .urgency-desc {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .submit-section {
+            text-align: center;
+            margin-top: 40px;
+        }
+
+        .submit-btn {
+            background: linear-gradient(135deg, #2E8B57, #3CB371);
+            color: white;
+            border: none;
+            padding: 18px 50px;
+            border-radius: 50px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 20px rgba(46, 139, 87, 0.3);
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(46, 139, 87, 0.4);
+        }
+
+        .submit-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+
+        .alert-error {
+            background: #ffe6e6;
+            color: #d32f2f;
+            border: 1px solid #ffcdd2;
+        }
+
+        .alert-success {
+            background: #e8f5e8;
+            color: #2e7d32;
+            border: 1px solid #c8e6c9;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #2E8B57;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Consultant Selection Styles */
+        .section-desc {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 20px;
+            font-style: italic;
+        }
+
+        .loading-consultants {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 20px;
+            color: #666;
+        }
+
+        .consultants-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .consultant-card {
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .consultant-card:hover {
+            border-color: #2E8B57;
+            box-shadow: 0 4px 12px rgba(46, 139, 87, 0.15);
+        }
+
+        .consultant-card.selected {
+            border-color: #2E8B57;
+            background: #f8fff8;
+            box-shadow: 0 4px 12px rgba(46, 139, 87, 0.2);
+        }
+
+        .consultant-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .consultant-avatar {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #2E8B57, #3CB371);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 16px;
+        }
+
+        .consultant-name {
+            font-weight: 600;
+            font-size: 16px;
+            color: #333;
+        }
+
+        .consultant-specialization {
+            color: #2E8B57;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+
+        .consultant-experience {
+            color: #666;
+            font-size: 13px;
+            margin-bottom: 5px;
+        }
+
+        .consultant-qualifications {
+            color: #888;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        .no-consultant-option {
+            border: 2px dashed #ddd;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: #666;
+        }
+
+        .no-consultant-option:hover {
+            border-color: #aaa;
+            background: #f9f9f9;
+        }
+
+        .no-consultant-option.selected {
+            border-color: #2E8B57;
+            background: #f8fff8;
+            color: #2E8B57;
+        }
+
+        @media (max-width: 768px) {
+            .consultants-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Chat Icon and Modal Styles */
+        .chat-icon {
+            position: fixed !important;
+            bottom: 30px !important;
+            right: 30px !important;
+            width: 60px !important;
+            height: 60px !important;
+            background: linear-gradient(135deg, #2E8B57, #3CB371) !important;
+            border-radius: 50% !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            cursor: pointer !important;
+            box-shadow: 0 4px 20px rgba(46, 139, 87, 0.3) !important;
+            transition: all 0.3s ease !important;
+            z-index: 9999 !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+
+        .chat-icon:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 25px rgba(46, 139, 87, 0.4);
+        }
+
+        .chat-icon-text {
+            font-size: 24px;
+            color: white;
+        }
+
+        .chat-notification {
+            position: absolute;
+            top: -2px;
+            right: -2px;
+            width: 12px;
+            height: 12px;
+            background: #ff4444;
+            border-radius: 50%;
+            border: 2px solid white;
+        }
+
+        .chat-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .chat-modal-content {
+            background: white;
+            border-radius: 20px;
+            width: 100%;
+            max-width: 800px;
+            height: 80vh;
+            max-height: 700px;
+            min-height: 500px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 15px 50px rgba(0, 0, 0, 0.3);
+            margin: auto;
+            position: relative;
+        }
+
+        .chat-modal-header {
+            background: linear-gradient(135deg, #2E8B57, #3CB371);
+            color: white;
+            padding: 20px;
+            border-radius: 15px 15px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .chat-modal-header h3 {
+            margin: 0;
+            font-size: 18px;
+        }
+
+        .chat-close {
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .chat-close:hover {
+            opacity: 0.7;
+        }
+
+        .chat-modal-body {
+            flex: 1;
+            padding: 30px;
+            overflow-y: auto;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 0 0 20px 20px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .consultation-message {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+            border: 1px solid rgba(46, 139, 87, 0.1);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        
+        .consultation-message:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+        }
+
+        .consultation-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .consultation-info h4 {
+            margin: 0 0 5px 0;
+            color: #333;
+            font-size: 16px;
+        }
+
+        .consultation-meta {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .consultation-status {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-pending { background: #fff3cd; color: #856404; }
+        .status-assigned { background: #d1ecf1; color: #0c5460; }
+        .status-in-progress { background: #d4edda; color: #155724; }
+        .status-completed { background: #e2e3e5; color: #383d41; }
+
+        .messages-section h5 {
+            margin: 0 0 10px 0;
+            color: #2E8B57;
+            font-size: 14px;
+        }
+
+        .message-item {
+            background: #f0fff0;
+            border-left: 3px solid #2E8B57;
+            padding: 10px 12px;
+            margin-bottom: 8px;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .message-content {
+            margin-bottom: 5px;
+            line-height: 1.4;
+        }
+
+        .message-time {
+            font-size: 11px;
+            color: #666;
+            text-align: right;
+        }
+
+        .no-messages {
+            text-align: center;
+            padding: 80px 40px;
+            color: #666;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            min-height: 300px;
+        }
+
+        .no-messages-icon {
+            font-size: 72px;
+            margin-bottom: 25px;
+            opacity: 0.6;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 0.6; transform: scale(1); }
+            50% { opacity: 0.8; transform: scale(1.05); }
+            100% { opacity: 0.6; transform: scale(1); }
+        }
+
+        @media (max-width: 768px) {
+            .chat-icon {
+                bottom: 20px;
+                right: 20px;
+                width: 50px;
+                height: 50px;
+            }
+
+            .chat-icon-text {
+                font-size: 20px;
+            }
+
+            .chat-modal {
+                padding: 10px;
+            }
+
+            .chat-modal-content {
+                width: 100%;
+                height: 90vh;
+                max-height: none;
+                border-radius: 15px;
+            }
+            
+            .chat-modal-body {
+                padding: 20px;
+            }
+            
+            .consultation-message {
+                padding: 20px;
+                margin-bottom: 15px;
+            }
+            
+            .consultation-header {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            .consultation-actions {
+                align-items: flex-start !important;
+                flex-direction: row !important;
+                gap: 10px !important;
+            }
+            
+            .no-messages {
+                padding: 40px 20px;
+                min-height: 200px;
+            }
+            
+            .no-messages-icon {
+                font-size: 56px !important;
+                margin-bottom: 20px !important;
+            }
+            
+            .no-messages h3 {
+                font-size: 20px !important;
+            }
+            
+            .no-messages p {
+                font-size: 16px !important;
+            }
+        }
+
+        /* Chat Interface Styles */
+        .chat-interface {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .chat-header {
+            padding: 15px;
+            border-bottom: 1px solid #e0e0e0;
+            background: #f8f9fa;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .back-to-list {
+            background: #2E8B57;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .back-to-list:hover {
+            background: #1e5f3a;
+        }
+
+        .chat-title {
+            font-weight: 600;
+            font-size: 16px;
+            color: #333;
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background: #f8f9fa;
+            max-height: 400px;
+        }
+
+        .chat-message {
+            display: flex;
+            margin-bottom: 20px;
+            gap: 12px;
+        }
+
+        .chat-message.farmer {
+            flex-direction: row-reverse;
+        }
+
+        .chat-message .message-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+
+        .chat-message.farmer .message-avatar {
+            background: #e8f5e8;
+        }
+
+        .chat-message.consultant .message-avatar {
+            background: #e3f2fd;
+        }
+
+        .chat-message .message-content {
+            max-width: 70%;
+            background: white;
+            border-radius: 12px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .chat-message.farmer .message-content {
+            background: #2E8B57;
+            color: white;
+        }
+
+        .chat-message .message-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .chat-message .sender-name {
+            font-weight: 600;
+            font-size: 12px;
+        }
+
+        .chat-message.farmer .sender-name {
+            color: #e8f5e8;
+        }
+
+        .chat-message .message-time {
+            font-size: 11px;
+            opacity: 0.7;
+        }
+
+        .chat-message .message-text {
+            font-size: 14px;
+            line-height: 1.4;
+        }
+
+        .no-chat-messages {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .chat-input-section {
+            padding: 15px;
+            border-top: 1px solid #e0e0e0;
+            background: white;
+        }
+
+        .chat-form .input-group {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+        }
+
+        .chat-form textarea {
+            flex: 1;
+            border: 2px solid #e0e0e0;
+            border-radius: 20px;
+            padding: 12px 16px;
+            resize: none;
+            font-family: inherit;
+            font-size: 14px;
+            max-height: 100px;
+        }
+
+        .chat-form textarea:focus {
+            outline: none;
+            border-color: #2E8B57;
+        }
+
+        .chat-form .send-btn {
+            background: #2E8B57;
+            color: white;
+            border: none;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .chat-form .send-btn:hover {
+            background: #1e5f3a;
+        }
+
+        .chat-form .send-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        /* Consultation actions */
+        .consultation-actions {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 8px;
+        }
+
+        .chat-btn {
+            background: #2E8B57;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 15px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .chat-btn:hover {
+            background: #1e5f3a;
+        }
+
+        .message-item {
+            margin-bottom: 12px;
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 3px solid #e0e0e0;
+        }
+
+        .message-item.farmer {
+            border-left-color: #2E8B57;
+        }
+
+        .message-item.consultant {
+            border-left-color: #2196f3;
+        }
+
+        .message-item .message-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .message-item .sender {
+            font-weight: 600;
+            font-size: 12px;
+        }
+
+        .message-item .time {
+            font-size: 11px;
+            color: #666;
+        }
+
+        .message-item .message-content {
+            font-size: 14px;
+            line-height: 1.4;
+        }
+
+        .more-messages {
+            color: #666;
+            font-style: italic;
+            font-size: 12px;
+            margin-top: 8px;
+        }
+
+        .back-to-dashboard {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: #2E8B57;
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.3s ease;
+        }
+
+        .back-to-dashboard:hover {
+            color: #1e5f3a;
+        }
+
+        @media (max-width: 768px) {
+            .consultation-form-container {
+                padding: 0 15px;
+            }
+
+            .consultation-form {
+                padding: 30px 20px;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+                gap: 0;
+            }
+
+            .urgency-selector {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+
+            .submit-btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Chat Icon -->
+    <div class="chat-icon" id="chatIcon" onclick="toggleChatModal()">
+        <span class="chat-icon-text">💬</span>
+        <div class="chat-notification" id="chatNotification" style="display: none;">•</div>
+    </div>
+
+    <!-- Chat Modal -->
+    <div class="chat-modal" id="chatModal" style="display: none;">
+        <div class="chat-modal-content">
+            <div class="chat-modal-header">
+                <h3 id="chatModalTitle">Consultation Messages</h3>
+                <span class="chat-close" onclick="toggleChatModal()">&times;</span>
+            </div>
+            <div class="chat-modal-body" id="chatModalBody">
+                <!-- Consultations will be loaded here dynamically -->
+                <div class="chat-interface" id="chatInterface" style="display: none;">
+                    <div class="chat-header" id="chatHeader">
+                        <button class="back-to-list" onclick="showConsultationsList()">← Back to Consultations</button>
+                        <div class="chat-title" id="chatTitle">Chat with Consultant</div>
+                    </div>
+                    <div class="chat-messages" id="chatMessages">
+                        <!-- Messages will be loaded here -->
+                    </div>
+                    <div class="chat-input-section" id="chatInputSection">
+                        <form class="chat-form" id="chatForm">
+                            <div class="input-group">
+                                <textarea 
+                                    id="messageInput" 
+                                    placeholder="Type your message to the consultant..."
+                                    rows="2"
+                                    maxlength="1000"
+                                    required
+                                ></textarea>
+                                <button type="submit" class="send-btn" id="sendBtn">
+                                    <svg viewBox="0 0 24 24" width="18" height="18">
+                                        <path fill="currentColor" d="M2,21L23,12L2,3V10L17,12L2,14V21Z"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <header class="header">
+        <nav class="nav-container">
+            <div class="logo">GoRakshaAI</div>
+            <ul class="nav-menu">
+                <li><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+                <li><a href="{{ url_for('disease_detection') }}">Disease Detection</a></li>
+                <li><a href="{{ url_for('chatbot_page') }}">AI Assistant</a></li>
+            </ul>
+            <div class="user-menu">
+                <div class="user-info">
+                    <div class="user-avatar">{{ user_name[0].upper() if user_name else 'U' }}</div>
+                    <span class="user-name">{{ user_name.title() if user_name else 'User' }}</span>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <div class="consultation-form-container">
+        <a href="{{ url_for('consultant_dashboard') if is_consultant else url_for('dashboard') }}" class="back-to-dashboard">← Back to {{ 'Consultant Dashboard' if is_consultant else 'Dashboard' }}</a>
+        
+        {% if is_consultant %}
+        <!-- Consultant View -->
+        <div class="form-header">
+            <h1>💬 Consultation Messages</h1>
+            <p>View and respond to farmer consultation requests and messages</p>
+        </div>
+        
+        <div class="consultation-form">
+            <div class="consultant-info-section">
+                <h3>📋 Your Assigned Consultations</h3>
+                <p>Click the chat icon in the top-right corner to view all consultation messages and requests assigned to you.</p>
+                <p>You can also access your full dashboard to manage consultations and send responses.</p>
+                
+                <div class="consultant-actions">
+                    <a href="{{ url_for('consultant_dashboard') }}" class="btn-primary" style="display: inline-block; padding: 12px 24px; background: #2E8B57; color: white; text-decoration: none; border-radius: 8px; margin: 10px 5px;">
+                        Go to Dashboard
+                    </a>
+                    <button onclick="alert('Please select a specific consultation from your dashboard to open chat.')" class="btn-secondary" style="display: inline-block; padding: 12px 24px; background: #3CB371; color: white; text-decoration: none; border-radius: 8px; margin: 10px 5px; border: none; cursor: pointer;">
+                        Open Chat Interface
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <!-- Farmer View - CONSULTANT SELECTION ONLY -->
+        <div class="form-header">
+            <h1>👩‍⚕️ Select Your Veterinary Consultant</h1>
+            <p>Choose a qualified veterinarian who will handle your animal health consultation</p>
+        </div>
+
+        <div class="consultation-form">
+            <div id="alertContainer"></div>
+
+            <!-- Consultant Selection Only -->
+            <div class="form-section">
+                <h3>Available Veterinary Consultants</h3>
+                <p class="section-desc">Select a consultant based on their specialization and experience</p>
+                <div id="consultantSelection">
+                    <div class="loading-consultants">
+                        <div class="spinner"></div>
+                        <span>Loading available consultants...</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Next Button -->
+            <div class="form-section">
+                <button type="button" class="submit-btn" id="proceedBtn" onclick="proceedToConsultation()" disabled>
+                    Proceed to Consultation Form →
+                </button>
+                <p style="margin-top: 15px; color: #666; font-size: 14px;">
+                    After selecting a consultant, you'll be able to submit your consultation details and start chatting.
+                </p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <script>
+        let selectedUrgency = 'Medium';
+        let selectedConsultant = undefined;  // Start as undefined, null means auto-assign
+        const isConsultant = {% if is_consultant %}true{% else %}false{% endif %};
+
+        // Load available consultants when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            // Debug: Force show chat icon immediately
+            const chatIcon = document.getElementById('chatIcon');
+            console.log('Chat icon element:', chatIcon);
+            
+            // Always show chat icon for both farmers and consultants
+            if (chatIcon) {
+                chatIcon.style.display = 'flex';
+                chatIcon.style.visibility = 'visible';
+                chatIcon.style.opacity = '1';
+                console.log('Chat icon should now be visible');
+            }
+            
+            // Only load consultants for farmers
+            if (!isConsultant) {
+                loadAvailableConsultants();
+                // Initialize with auto-assign selected (null value) and enable proceed button
+                selectedConsultant = null;
+                const proceedBtn = document.getElementById('proceedBtn');
+                if (proceedBtn) {
+                    proceedBtn.disabled = false;
+                }
+            }
+            
+            checkForExistingConsultations(); // Check if user has consultations to show chat icon
+        });
+
+        // Chat Modal Functions
+        function toggleChatModal() {
+            const modal = document.getElementById('chatModal');
+            if (modal.style.display === 'none' || modal.style.display === '') {
+                modal.style.display = 'flex';
+                loadUserConsultations();
+            } else {
+                modal.style.display = 'none';
+            }
+        }
+
+        // Check if user has any consultations to show/hide chat icon
+        async function checkForExistingConsultations() {
+            try {
+                // Always ensure chat icon is visible
+                const chatIcon = document.getElementById('chatIcon');
+                if (chatIcon) {
+                    chatIcon.style.display = 'flex';
+                }
+                
+                const response = await fetch('/api/user-consultation-messages');
+                const data = await response.json();
+                
+                if (data.success && data.consultations && data.consultations.length > 0) {
+                    // Check if there are new messages
+                    const hasNewMessages = data.consultations.some(c => 
+                        c.messages && c.messages.some(m => m.sender_type === 'consultant')
+                    );
+                    
+                    if (hasNewMessages) {
+                        const notification = document.getElementById('chatNotification');
+                        if (notification) {
+                            notification.style.display = 'block';
+                        }
+                    }
+                } else {
+                    console.log('No consultations found, but chat icon still visible for access');
+                }
+            } catch (error) {
+                console.error('Error checking consultations:', error);
+                // Even on error, ensure chat icon is visible
+                const chatIcon = document.getElementById('chatIcon');
+                if (chatIcon) {
+                    chatIcon.style.display = 'flex';
+                }
+            }
+        }
+
+        // Load user's consultations and messages
+        async function loadUserConsultations() {
+            const chatBody = document.getElementById('chatModalBody');
+            
+            // Show loading with better styling
+            chatBody.innerHTML = `
+                <div class="loading-state" style="text-align: center; padding: 80px 40px; color: #666; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; min-height: 300px;">
+                    <div class="spinner" style="display: inline-block; width: 50px; height: 50px; border: 5px solid #f3f3f3; border-top: 5px solid #2E8B57; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 25px;"></div>
+                    <h3 style="margin: 0 0 10px 0; color: #333; font-size: 20px; font-weight: 600;">Loading Messages</h3>
+                    <p style="margin: 0; font-size: 16px; color: #666;">Please wait while we fetch your consultations...</p>
+                </div>
+                <style>
+                    @keyframes spin {
+                        0% { transform: rotate(0deg); }
+                        100% { transform: rotate(360deg); }
+                    }
+                </style>
+            `;
+
+            try {
+                const response = await fetch('/api/user-consultation-messages');
+                const data = await response.json();
+                
+                console.log('🔍 DEBUG: API Response:', data);
+                
+                if (data.success) {
+                    console.log('🔍 DEBUG: API returned success, consultations:', data.consultations);
+                    displayConsultationsWithMessages(data.consultations);
+                    // Hide notification when modal is opened
+                    const notification = document.getElementById('chatNotification');
+                    if (notification) {
+                        notification.style.display = 'none';
+                    }
+                } else {
+                    console.error('🔍 DEBUG: API returned error:', data.message);
+                    chatBody.innerHTML = `
+                        <div class="no-messages">
+                            <div class="no-messages-icon">⚠️</div>
+                            <h3 style="margin: 0 0 15px 0; color: #333; font-size: 24px; font-weight: 600;">Error Loading Messages</h3>
+                            <p style="margin: 0 0 25px 0; font-size: 18px; line-height: 1.6; color: #666; max-width: 400px;">${data.message}</p>
+                            <button onclick="loadUserConsultations()" style="background: linear-gradient(135deg, #2E8B57, #3CB371); color: white; border: none; padding: 12px 24px; border-radius: 25px; cursor: pointer; font-size: 16px; font-weight: 600; box-shadow: 0 4px 12px rgba(46, 139, 87, 0.3); transition: all 0.3s ease;">Try Again</button>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error loading consultations:', error);
+                chatBody.innerHTML = `
+                    <div class="no-messages">
+                        <div class="no-messages-icon">⚠️</div>
+                        <h3 style="margin: 0 0 15px 0; color: #333; font-size: 24px; font-weight: 600;">Connection Error</h3>
+                        <p style="margin: 0 0 25px 0; font-size: 18px; line-height: 1.6; color: #666; max-width: 400px;">Failed to load messages. Please check your connection and try again.</p>
+                        <button onclick="loadUserConsultations()" style="background: linear-gradient(135deg, #2E8B57, #3CB371); color: white; border: none; padding: 12px 24px; border-radius: 25px; cursor: pointer; font-size: 16px; font-weight: 600; box-shadow: 0 4px 12px rgba(46, 139, 87, 0.3); transition: all 0.3s ease;">Try Again</button>
+                    </div>
+                `;
+            }
+        }
+
+        function displayConsultationsWithMessages(consultations) {
+            const chatModalBody = document.getElementById('chatModalBody');
+            
+            if (!consultations || consultations.length === 0) {
+                chatModalBody.innerHTML = `
+                    <div class="no-messages">
+                        <div class="no-messages-icon">💬</div>
+                        <h3 style="margin: 0 0 15px 0; color: #333; font-size: 24px; font-weight: 600;">No Messages Yet</h3>
+                        <p style="margin: 0; font-size: 18px; line-height: 1.6; color: #666; max-width: 400px;">No consultation messages yet. Submit a consultation request to start receiving advice from veterinarians.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '<div class="consultations-list" id="consultationsList" style="height: 100%; overflow-y: auto;">';
+            
+            consultations.forEach(consultation => {
+                const statusClass = `status-${consultation.status.toLowerCase().replace(' ', '-')}`;
+                const canChat = consultation.assigned_to && consultation.status !== 'Completed';
+                const hasMessages = consultation.messages && consultation.messages.length > 0;
+                
+                html += `
+                    <div class="consultation-message">
+                        <div class="consultation-header" style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; padding-bottom: 20px; border-bottom: 2px solid #f0f0f0;">
+                            <div class="consultation-info" style="flex: 1;">
+                                <h4 style="margin: 0 0 10px 0; color: #2E8B57; font-size: 20px; font-weight: 700;">${consultation.animal_type} - ${consultation.farm_name}</h4>
+                                <div class="consultation-meta" style="font-size: 15px; color: #666; display: flex; align-items: center; gap: 10px;">
+                                    <span style="background: #e8f5e8; padding: 4px 8px; border-radius: 12px; font-size: 13px; font-weight: 600;">
+                                        ${consultation.assigned_consultant_name ? '👨‍⚕️ Dr. ' + consultation.assigned_consultant_name : '⏳ No consultant assigned'}
+                                    </span>
+                                    <span style="color: #999;">•</span>
+                                    <span>📅 ${consultation.created_at}</span>
+                                </div>
+                            </div>
+                            <div class="consultation-actions" style="display: flex; flex-direction: column; align-items: flex-end; gap: 10px;">
+                                <div class="consultation-status ${statusClass}" style="padding: 8px 16px; border-radius: 20px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">
+                                    ${consultation.status}
+                                </div>
+                                ${canChat ? `<button class="chat-btn" onclick="openChatWithConsultant('${consultation.id}', '${consultation.animal_type}', '${consultation.assigned_consultant_name || 'Consultant'}')" style="background: linear-gradient(135deg, #2E8B57, #3CB371); color: white; border: none; padding: 10px 16px; border-radius: 25px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.3s ease; box-shadow: 0 4px 12px rgba(46, 139, 87, 0.3);">💬 Chat Now</button>` : ''}
+                            </div>
+                        </div>
+                `;
+
+                if (hasMessages) {
+                    html += '<div class="messages-section" style="margin-top: 20px;"><h5 style="margin: 0 0 15px 0; color: #2E8B57; font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 8px;"><span>💬</span> Recent Messages from Consultant:</h5>';
+                    const recentMessages = consultation.messages.slice(-3);
+                    recentMessages.forEach(message => {
+                        const senderIcon = message.sender_type === 'farmer' ? '🌾' : '👨‍⚕️';
+                        html += `
+                            <div class="message-item ${message.sender_type}" style="background: linear-gradient(135deg, #f0fff0, #e8f5e8); border-left: 5px solid #2E8B57; padding: 16px 20px; margin-bottom: 12px; border-radius: 0 12px 12px 0; box-shadow: 0 2px 8px rgba(46, 139, 87, 0.1);">
+                                <div class="message-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                    <span class="sender" style="font-weight: 700; color: #2E8B57; font-size: 15px; display: flex; align-items: center; gap: 6px;">${senderIcon} ${message.sender_name}</span>
+                                    <span class="time" style="font-size: 12px; color: #666; background: rgba(255,255,255,0.7); padding: 2px 8px; border-radius: 10px;">${message.timestamp}</span>
+                                </div>
+                                <div class="message-content" style="line-height: 1.6; color: #333; font-size: 15px; font-weight: 500;">${message.message}</div>
+                            </div>
+                        `;
+                    });
+                    if (consultation.messages.length > 3) {
+                        html += `<p class="more-messages" style="margin: 15px 0 0 0; color: #2E8B57; font-size: 13px; font-style: italic; text-align: center; background: rgba(46, 139, 87, 0.1); padding: 8px; border-radius: 8px;">📄 +${consultation.messages.length - 3} more messages available</p>`;
+                    }
+                    html += '</div>';
+                } else {
+                    html += '<div class="messages-section" style="margin-top: 20px;"><div style="color: #666; font-style: italic; margin: 0; padding: 20px; background: linear-gradient(135deg, #f8f9fa, #e9ecef); border-radius: 12px; text-align: center; border: 2px dashed #ddd;"><div style="font-size: 32px; margin-bottom: 10px; opacity: 0.5;">⏳</div><p style="margin: 0; font-size: 16px;">No messages from consultant yet. They will respond to your consultation soon.</p></div></div>';
+                }
+
+                html += '</div>';
+            });
+            
+            html += '</div>';
+            chatModalBody.innerHTML = html;
+        }
+
+        async function loadAvailableConsultants() {
+            try {
+                const response = await fetch('/api/available-consultants');
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayConsultants(data.consultants);
+                } else {
+                    displayConsultantError('Failed to load consultants: ' + data.message);
+                }
+            } catch (error) {
+                console.error('Error loading consultants:', error);
+                displayConsultantError('Error loading consultants. You can still submit without selecting a specific consultant.');
+            }
+        }
+
+        function displayConsultants(consultants) {
+            const container = document.getElementById('consultantSelection');
+            
+            if (consultants.length === 0) {
+                container.innerHTML = `
+                    <div class="no-consultant-option selected" onclick="selectConsultant(null, this)">
+                        <div style="font-weight: 600; margin-bottom: 5px;">🤖 Auto-assign</div>
+                        <div>No consultants available. Your request will be queued for the next available consultant.</div>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '<div class="consultants-grid">';
+            
+            // Add "no preference" option
+            html += `
+                <div class="no-consultant-option selected" onclick="selectConsultant(null, this)">
+                    <div style="font-weight: 600; margin-bottom: 5px;">🤖 Auto-assign</div>
+                    <div>Let the system assign the best available consultant</div>
+                </div>
+            `;
+            
+            // Add consultant cards
+            consultants.forEach(consultant => {
+                const initials = consultant.name.split(' ').map(n => n[0]).join('').substring(0, 2);
+                html += `
+                    <div class="consultant-card" onclick="selectConsultant('${consultant.id}', this)" data-consultant-id="${consultant.id}">
+                        <div class="consultant-header">
+                            <div class="consultant-avatar">${initials}</div>
+                            <div class="consultant-name">Dr. ${consultant.name}</div>
+                        </div>
+                        <div class="consultant-specialization">${consultant.specialization}</div>
+                        <div class="consultant-experience">📅 ${consultant.experience} years experience</div>
+                        ${consultant.qualifications ? `<div class="consultant-qualifications">🎓 ${consultant.qualifications}</div>` : ''}
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        function displayConsultantError(message) {
+            const container = document.getElementById('consultantSelection');
+            container.innerHTML = `
+                <div class="no-consultant-option selected" onclick="selectConsultant(null, this)">
+                    <div style="font-weight: 600; margin-bottom: 5px;">⚠️ Auto-assign</div>
+                    <div>${message}</div>
+                </div>
+            `;
+        }
+
+        function selectConsultant(consultantId, element) {
+            // Remove selected class from all consultant options
+            document.querySelectorAll('.consultant-card, .no-consultant-option').forEach(card => {
+                card.classList.remove('selected');
+            });
+            
+            // Add selected class to clicked option
+            element.classList.add('selected');
+            
+            // Update selected consultant
+            selectedConsultant = consultantId;
+            
+            // Enable proceed button
+            const proceedBtn = document.getElementById('proceedBtn');
+            if (proceedBtn) {
+                proceedBtn.disabled = false;
+            }
+        }
+
+        function selectUrgency(urgency, element) {
+            // Remove selected class from all options
+            document.querySelectorAll('.urgency-option').forEach(option => {
+                option.classList.remove('selected');
+            });
+            
+            // Add selected class to clicked option
+            element.classList.add('selected');
+            
+            // Update hidden input
+            selectedUrgency = urgency;
+            document.getElementById('urgency').value = urgency;
+        }
+
+        function showAlert(message, type = 'error') {
+            const alertContainer = document.getElementById('alertContainer');
+            alertContainer.innerHTML = `
+                <div class="alert alert-${type}">
+                    ${message}
+                </div>
+            `;
+            
+            // Scroll to top to show alert
+            alertContainer.scrollIntoView({ behavior: 'smooth' });
+            
+            // Auto-hide success messages after 5 seconds
+            if (type === 'success') {
+                setTimeout(() => {
+                    alertContainer.innerHTML = '';
+                }, 5000);
+            }
+        }
+
+        function hideAlert() {
+            document.getElementById('alertContainer').innerHTML = '';
+        }
+
+        function setLoading(isLoading) {
+            const loading = document.getElementById('loading');
+            const submitBtn = document.getElementById('submitBtn');
+            
+            if (isLoading) {
+                loading.style.display = 'block';
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Submitting...';
+            } else {
+                loading.style.display = 'none';
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Submit Consultation Request';
+            }
+        }
+
+        function validateForm(data) {
+            // Check consultant selection first
+            if (!selectedConsultant) {
+                showAlert('Please select a consultant before proceeding');
+                return false;
+            }
+
+            // Check required fields
+            const requiredFields = ['farmer_name', 'contact_phone', 'farm_name', 'animal_type', 'symptoms'];
+            
+            for (let field of requiredFields) {
+                if (!data[field] || data[field].trim() === '') {
+                    const fieldName = field.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+                    showAlert(`${fieldName} is required`);
+                    return false;
+                }
+            }
+
+            // Validate phone number (basic validation)
+            const phoneRegex = /^[\+]?[0-9\s\-\(\)]{10,}$/;
+            if (!phoneRegex.test(data.contact_phone)) {
+                showAlert('Please enter a valid phone number');
+                return false;
+            }
+
+            // Validate email if provided
+            if (data.farmer_email && data.farmer_email.trim() !== '') {
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!emailRegex.test(data.farmer_email)) {
+                    showAlert('Please enter a valid email address');
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        document.getElementById('consultationForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            hideAlert();
+
+            const formData = new FormData(this);
+            const data = {
+                farmer_name: formData.get('farmer_name'),
+                contact_phone: formData.get('contact_phone'),
+                farm_name: formData.get('farm_name'),
+                farmer_email: formData.get('farmer_email'),
+                location: formData.get('location'),
+                animal_type: formData.get('animal_type'),
+                animal_breed: formData.get('animal_breed'),
+                animal_age: formData.get('animal_age'),
+                symptoms: formData.get('symptoms'),
+                duration: formData.get('duration'),
+                urgency: selectedUrgency,
+                additional_notes: formData.get('additional_notes'),
+                selected_consultant: selectedConsultant
+            };
+
+            if (!validateForm(data)) {
+                return;
+            }
+
+            setLoading(true);
+
+            try {
+                const response = await fetch('/api/consultation-request', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showAlert(result.message + ' You can check the chat icon (💬) to view messages from your consultant.', 'success');
+                    
+                    // Clear form
+                    this.reset();
+                    selectUrgency('Medium', document.querySelector('.urgency-option.medium'));
+                    selectedConsultant = null; // Reset consultant selection
+                    
+                    // Update consultant selection display
+                    const consultantCards = document.querySelectorAll('.consultant-card');
+                    consultantCards.forEach(card => card.classList.remove('selected'));
+                    
+                    // Refresh chat icon to check for new messages
+                    setTimeout(() => {
+                        checkForExistingConsultations();
+                    }, 1000);
+                    
+                    // Redirect to dashboard after delay
+                    setTimeout(() => {
+                        window.location.href = '{{ url_for("dashboard") }}';
+                    }, 4000);
+                } else {
+                    showAlert(result.message || 'Failed to submit consultation request. Please try again.');
+                }
+            } catch (error) {
+                console.error('Error submitting consultation request:', error);
+                showAlert('Network error. Please check your connection and try again.');
+            } finally {
+                setLoading(false);
+            }
+        });
+
+        // Clear alerts when user starts typing
+        const inputs = document.querySelectorAll('input, select, textarea');
+        inputs.forEach(input => {
+            input.addEventListener('input', hideAlert);
+        });
+
+        // Function to proceed to consultation form
+        function proceedToConsultation() {
+            // Check if a consultant has been selected (either specific consultant or null for auto-assign)
+            if (selectedConsultant === undefined) {
+                showAlert('Please select a consultant first.');
+                return;
+            }
+            
+            // Store selected consultant in session storage
+            // Handle null value properly for sessionStorage
+            if (selectedConsultant === null) {
+                sessionStorage.setItem('selectedConsultant', 'null');
+            } else {
+                sessionStorage.setItem('selectedConsultant', selectedConsultant);
+            }
+            
+            console.log('Storing in sessionStorage:', selectedConsultant);
+            
+            // Redirect to consultation form page
+            window.location.href = '/consultation-form';
+        }
+
+        // Chat functionality
+        let currentChatConsultationId = null;
+        let chatPollingInterval = null;
+
+        function openChatWithConsultant(consultationId, animalType, consultantName) {
+            console.log('🔍 DEBUG: Opening chat for consultation:', consultationId);
+            
+            // Check if user is a consultant or farmer
+            if (isConsultant) {
+                // Consultant - redirect to consultant chat page
+                window.location.href = `/consultation-chat/${consultationId}`;
+            } else {
+                // Farmer - redirect to farmer chat page (using the same consultation-chat route)
+                window.location.href = `/consultation-chat/${consultationId}`;
+            }
+        }
+
+        function showConsultationsList() {
+            // Hide chat interface and show consultations list
+            document.getElementById('chatInterface').style.display = 'none';
+            
+            // Show dynamically generated consultations content
+            const chatModalBody = document.getElementById('chatModalBody');
+            const consultationsContent = chatModalBody.querySelector('.consultations-list');
+            if (consultationsContent) {
+                consultationsContent.style.display = 'block';
+            } else {
+                // If no consultations content, reload them
+                loadUserConsultations();
+            }
+            
+            // Stop polling
+            if (chatPollingInterval) {
+                clearInterval(chatPollingInterval);
+                chatPollingInterval = null;
+            }
+            
+            currentChatConsultationId = null;
+        }
+
+        async function loadChatMessages() {
+            if (!currentChatConsultationId) return;
+            
+            try {
+                const response = await fetch(`/api/consultation/${currentChatConsultationId}/messages`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayChatMessages(data.messages);
+                } else {
+                    console.error('Failed to load messages:', data.message);
+                }
+            } catch (error) {
+                console.error('Error loading chat messages:', error);
+            }
+        }
+
+        function displayChatMessages(messages) {
+            const chatMessages = document.getElementById('chatMessages');
+            
+            if (!messages || messages.length === 0) {
+                chatMessages.innerHTML = `
+                    <div class="no-chat-messages">
+                        <p>No messages yet. Start the conversation!</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            const messagesHtml = messages.map(msg => {
+                const isFromFarmer = msg.sender_type === 'farmer';
+                const senderIcon = isFromFarmer ? '🌾' : '👨‍⚕️';
+                return `
+                    <div class="chat-message ${msg.sender_type}">
+                        <div class="message-avatar">${senderIcon}</div>
+                        <div class="message-content">
+                            <div class="message-header">
+                                <span class="sender-name">${msg.sender_name}</span>
+                                <span class="message-time">${formatChatTime(msg.timestamp)}</span>
+                            </div>
+                            <div class="message-text">${msg.message}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            chatMessages.innerHTML = messagesHtml;
+            
+            // Scroll to bottom
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function setupChatForm() {
+            const chatForm = document.getElementById('chatForm');
+            const messageInput = document.getElementById('messageInput');
+            
+            // Remove any existing event listeners
+            chatForm.replaceWith(chatForm.cloneNode(true));
+            const newChatForm = document.getElementById('chatForm');
+            const newMessageInput = document.getElementById('messageInput');
+            
+            newChatForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                await sendChatMessage();
+            });
+            
+            // Auto-resize textarea
+            newMessageInput.addEventListener('input', function() {
+                this.style.height = 'auto';
+                this.style.height = Math.min(this.scrollHeight, 100) + 'px';
+            });
+        }
+
+        async function sendChatMessage() {
+            const messageInput = document.getElementById('messageInput');
+            const sendBtn = document.getElementById('sendBtn');
+            const message = messageInput.value.trim();
+            
+            if (!message || !currentChatConsultationId) return;
+            
+            // Disable input while sending
+            messageInput.disabled = true;
+            sendBtn.disabled = true;
+            
+            try {
+                const response = await fetch(`/api/consultation/${currentChatConsultationId}/messages`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ message })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Clear input
+                    messageInput.value = '';
+                    messageInput.style.height = 'auto';
+                    
+                    // Reload messages
+                    loadChatMessages();
+                } else {
+                    alert('Failed to send message: ' + (data.message || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error sending message:', error);
+                alert('Network error while sending message');
+            } finally {
+                // Re-enable input
+                messageInput.disabled = false;
+                sendBtn.disabled = false;
+                messageInput.focus();
+            }
+        }
+
+        function formatChatTime(dateString) {
+            if (!dateString) return '';
+            
+            try {
+                const date = new Date(dateString);
+                const now = new Date();
+                const diff = now - date;
+                const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                
+                if (days === 0) {
+                    return date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                } else if (days === 1) {
+                    return 'Yesterday ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                } else {
+                    return date.toLocaleDateString();
+                }
+            } catch (e) {
+                return dateString;
+            }
+        }
+
+        // Override the toggleChatModal function to handle chat cleanup
+        function toggleChatModal() {
+            const modal = document.getElementById('chatModal');
+            if (modal.style.display === 'none' || modal.style.display === '') {
+                modal.style.display = 'block';
+                checkForExistingConsultations();
+            } else {
+                modal.style.display = 'none';
+                showConsultationsList(); // This will stop polling
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Disease Detection - GoRakshaAI</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/disease-detection.css') }}">
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <nav class="nav-container">
+            <div class="logo">GoRakshaAI</div>
+            <ul class="nav-menu">
+                <li><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+                <li><a href="{{ url_for('dashboard') }}#features">Features</a></li>
+                <li><a href="{{ url_for('dashboard') }}#knowledge">Animal Care Tips</a></li>
+                <li><a href="{{ url_for('dashboard') }}#contact">Contact</a></li>
+            </ul>
+            <div class="user-menu">
+                <div class="user-info" onclick="toggleUserDropdown()">
+                    <div class="user-avatar">{{ session['user_name'][0].upper() if session['user_name'] else 'U' }}</div>
+                    <span class="user-name">{{ session['user_name'].title() if session['user_name'] else 'User' }}</span>
+                    <span class="dropdown-arrow">▼</span>
+                </div>
+                <div class="user-dropdown" id="userDropdown">
+                    <a href="#" class="dropdown-item">👤 Profile</a>
+                    <a href="{{ url_for('logout') }}" class="dropdown-item">🚪 Logout</a>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-content">
+            <h1>🔬 AI Disease Detection</h1>
+            <p>Select an animal type to start AI-powered disease detection using advanced computer vision models.</p>
+        </div>
+    </section>
+
+    <!-- Animal Selection Section -->
+    <section class="animal-selection">
+        <div class="container">
+            <h2 class="section-title">Select Animal Type</h2>
+            <div class="animals-grid">
+                <div class="animal-card" onclick="selectAnimal('cat')">
+                    <div class="animal-icon">🐱</div>
+                    <h3>Cat</h3>
+                    <p>Detect feline diseases including ring worm, calicivirus, and flea allergy</p>
+                    <div class="model-info">
+                        <span class="model-tag">YOLOv8 Model</span>
+                    </div>
+                </div>
+
+                <div class="animal-card" onclick="selectAnimal('cow')">
+                    <div class="animal-icon">🐄</div>
+                    <h3>Cow / Cattle</h3>
+                    <p>Detect lumpy skin disease in cattle with high accuracy</p>
+                    <div class="model-info">
+                        <span class="model-tag">YOLOv8 Model</span>
+                    </div>
+                </div>
+
+                <!-- Future models placeholder -->
+                <div class="animal-card" onclick="selectAnimal('dog')">
+                    <div class="animal-icon">🐕</div>
+                    <h3>Dog</h3>
+                    <p>Detect canine diseases including hotspot, mange, and pyoderma</p>
+                    <div class="model-info">
+                        <span class="model-tag">YOLOv8 Model</span>
+                    </div>
+                </div>
+
+                <div class="animal-card coming-soon">
+                    <div class="animal-icon">🐑</div>
+                    <h3>Sheep</h3>
+                    <p>Advanced detection for sheep health conditions</p>
+                    <div class="coming-soon-badge">Coming Soon</div>
+                </div>
+
+                <div class="animal-card coming-soon">
+                    <div class="animal-icon">🐴</div>
+                    <h3>Horse</h3>
+                    <p>Equine health monitoring and disease detection</p>
+                    <div class="coming-soon-badge">Coming Soon</div>
+                </div>
+
+                <div class="animal-card coming-soon">
+                    <div class="animal-icon">🐷</div>
+                    <h3>Pig</h3>
+                    <p>Swine disease detection and health assessment</p>
+                    <div class="coming-soon-badge">Coming Soon</div>
+                </div>
+            </div>
+
+            <div class="back-button-container">
+                <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">← Back to Dashboard</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <div class="footer-logo">GoRakshaAI</div>
+                    <p>Revolutionizing animal healthcare with artificial intelligence.</p>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2025 GoRakshaAI. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // User dropdown toggle functionality
+        function toggleUserDropdown() {
+            const dropdown = document.getElementById('userDropdown');
+            dropdown.classList.toggle('show');
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.user-menu')) {
+                const dropdown = document.getElementById('userDropdown');
+                dropdown.classList.remove('show');
+            }
+        });
+
+        // Animal selection function
+        function selectAnimal(animal) {
+            if (animal === 'cat') {
+                window.location.href = "{{ url_for('cat_detection') }}";
+            } else if (animal === 'cow') {
+                window.location.href = "{{ url_for('cow_detection') }}";
+            } else if (animal === 'dog') {
+                window.location.href = "{{ url_for('dog_detection') }}";
+            }
+        }
+    </script>
+</body>
+</html>

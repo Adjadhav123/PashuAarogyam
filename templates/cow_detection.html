@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cow Disease Detection - GoRakshaAI</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/disease-detection.css') }}">
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <nav class="nav-container">
+            <div class="logo">GoRakshaAI</div>
+            <ul class="nav-menu">
+                <li><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+                <li><a href="{{ url_for('disease_detection') }}">Disease Detection</a></li>
+                <li><a href="{{ url_for('dashboard') }}#contact">Contact</a></li>
+            </ul>
+            <div class="user-menu">
+                <div class="user-info" onclick="toggleUserDropdown()">
+                    <div class="user-avatar">{{ session['user_name'][0].upper() if session['user_name'] else 'U' }}</div>
+                    <span class="user-name">{{ session['user_name'].title() if session['user_name'] else 'User' }}</span>
+                    <span class="dropdown-arrow">▼</span>
+                </div>
+                <div class="user-dropdown" id="userDropdown">
+                    <a href="#" class="dropdown-item">👤 Profile</a>
+                    <a href="{{ url_for('logout') }}" class="dropdown-item">🚪 Logout</a>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Detection Page -->
+    <section class="detection-page">
+        <div class="container">
+            <div class="detection-container">
+                <!-- Animal Header -->
+                <div class="animal-header">
+                    <div class="animal-icon">🐄</div>
+                    <h2>Cow Disease Detection</h2>
+                    <p>AI-powered detection using YOLOv8 model trained for cattle health conditions</p>
+                </div>
+
+                <!-- Disease Classes Info -->
+                <div class="disease-classes">
+                    <h4>Detectable Conditions:</h4>
+                    <div class="disease-list">
+                        <span class="disease-tag healthy">Healthy</span>
+                        <span class="disease-tag disease">Lumpy Skin Disease</span>
+                    </div>
+                </div>
+
+                <!-- Upload Section -->
+                <div class="upload-section">
+                    <h3>Choose Image Source</h3>
+                    <div class="upload-options">
+                        <div class="upload-option" onclick="selectUploadMethod('file')" id="fileOption">
+                            <div class="upload-icon">📁</div>
+                            <h4>Upload Image</h4>
+                            <p>Select an image from your device</p>
+                        </div>
+                        <div class="upload-option" onclick="selectUploadMethod('camera')" id="cameraOption">
+                            <div class="upload-icon">📷</div>
+                            <h4>Camera Capture</h4>
+                            <p>Take a photo using your camera</p>
+                        </div>
+                    </div>
+
+                    <!-- File Upload Area -->
+                    <div id="fileUploadArea" class="file-drop-zone hidden">
+                        <div class="upload-icon">📷</div>
+                        <h4>Drop image here or click to browse</h4>
+                        <p>Supported formats: JPG, PNG, WebP (Max 10MB)</p>
+                        <input type="file" id="fileInput" accept="image/*" style="display: none;">
+                    </div>
+
+                    <!-- Camera Section -->
+                    <div id="cameraSection" class="camera-section hidden">
+                        <video id="video" autoplay playsinline></video>
+                        <canvas id="canvas"></canvas>
+                        <div class="camera-controls">
+                            <button class="btn btn-camera" onclick="startCamera()">Start Camera</button>
+                            <button class="btn btn-capture" onclick="capturePhoto()" id="captureBtn" disabled>Capture Photo</button>
+                            <button class="btn btn-secondary" onclick="stopCamera()">Stop Camera</button>
+                        </div>
+                    </div>
+
+                    <!-- Image Preview -->
+                    <div id="imagePreview" class="image-preview hidden">
+                        <img id="previewImg" class="preview-image" alt="Preview">
+                        <div style="margin-top: 1rem;">
+                            <button class="btn btn-secondary" onclick="resetSelection()">Choose Different Image</button>
+                        </div>
+                    </div>
+
+                    <!-- Analyze Button -->
+                    <button class="btn btn-analyze" onclick="analyzeImage()" id="analyzeBtn" disabled>
+                        🔬 Analyze for Diseases
+                    </button>
+                </div>
+
+                <!-- Loading Spinner -->
+                <div class="loading-spinner" id="loadingSpinner">
+                    <div class="spinner"></div>
+                    <p>Analyzing image with AI model...</p>
+                </div>
+
+                <!-- Results Section -->
+                <div class="results-section" id="resultsSection">
+                    <div class="result-header">
+                        <h3>🔬 Detection Results</h3>
+                        <div id="resultSummary"></div>
+                    </div>
+                    
+                    <div class="confidence-bar">
+                        <div class="confidence-fill" id="confidenceBar"></div>
+                    </div>
+                    <div class="confidence-text" id="confidenceText"></div>
+                    
+                    <div class="result-details" id="resultDetails"></div>
+                </div>
+
+                <!-- Navigation -->
+                <div class="back-button-container">
+                    <a href="{{ url_for('disease_detection') }}" class="btn btn-secondary">← Back to Animal Selection</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <script>
+        let currentImageFile = null;
+        let video = null;
+        let canvas = null;
+        let stream = null;
+
+        // User dropdown toggle functionality
+        function toggleUserDropdown() {
+            const dropdown = document.getElementById('userDropdown');
+            dropdown.classList.toggle('show');
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.user-menu')) {
+                const dropdown = document.getElementById('userDropdown');
+                dropdown.classList.remove('show');
+            }
+        });
+
+        // Upload method selection
+        function selectUploadMethod(method) {
+            // Reset all options
+            document.getElementById('fileOption').classList.remove('active');
+            document.getElementById('cameraOption').classList.remove('active');
+            document.getElementById('fileUploadArea').classList.add('hidden');
+            document.getElementById('cameraSection').classList.add('hidden');
+            
+            if (method === 'file') {
+                document.getElementById('fileOption').classList.add('active');
+                document.getElementById('fileUploadArea').classList.remove('hidden');
+            } else if (method === 'camera') {
+                document.getElementById('cameraOption').classList.add('active');
+                document.getElementById('cameraSection').classList.remove('hidden');
+            }
+            
+            resetResults();
+        }
+
+        // File upload handling
+        document.getElementById('fileUploadArea').addEventListener('click', function() {
+            document.getElementById('fileInput').click();
+        });
+
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                handleImageFile(file);
+            }
+        });
+
+        // Drag and drop handling
+        document.getElementById('fileUploadArea').addEventListener('dragover', function(e) {
+            e.preventDefault();
+            this.classList.add('dragover');
+        });
+
+        document.getElementById('fileUploadArea').addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            this.classList.remove('dragover');
+        });
+
+        document.getElementById('fileUploadArea').addEventListener('drop', function(e) {
+            e.preventDefault();
+            this.classList.remove('dragover');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleImageFile(files[0]);
+            }
+        });
+
+        function handleImageFile(file) {
+            if (!file.type.startsWith('image/')) {
+                alert('Please select a valid image file.');
+                return;
+            }
+
+            if (file.size > 10 * 1024 * 1024) {
+                alert('File size should be less than 10MB.');
+                return;
+            }
+
+            currentImageFile = file;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                displayPreview(e.target.result);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Camera handling
+        function startCamera() {
+            video = document.getElementById('video');
+            canvas = document.getElementById('canvas');
+
+            navigator.mediaDevices.getUserMedia({ 
+                video: { facingMode: 'environment' } // Try to use back camera
+            })
+            .then(function(mediaStream) {
+                stream = mediaStream;
+                video.srcObject = stream;
+                document.getElementById('captureBtn').disabled = false;
+            })
+            .catch(function(err) {
+                console.error('Error accessing camera: ', err);
+                alert('Unable to access camera. Please check permissions.');
+            });
+        }
+
+        function capturePhoto() {
+            if (video && canvas) {
+                const context = canvas.getContext('2d');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                context.drawImage(video, 0, 0);
+                
+                const imageDataUrl = canvas.toDataURL('image/jpeg');
+                displayPreview(imageDataUrl);
+                
+                // Convert to file for upload
+                canvas.toBlob(function(blob) {
+                    currentImageFile = new File([blob], 'camera-capture.jpg', { type: 'image/jpeg' });
+                }, 'image/jpeg');
+            }
+        }
+
+        function stopCamera() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                document.getElementById('captureBtn').disabled = true;
+                video.srcObject = null;
+            }
+        }
+
+        function displayPreview(src) {
+            document.getElementById('previewImg').src = src;
+            document.getElementById('imagePreview').classList.remove('hidden');
+            document.getElementById('analyzeBtn').disabled = false;
+        }
+
+        function resetSelection() {
+            currentImageFile = null;
+            document.getElementById('imagePreview').classList.add('hidden');
+            document.getElementById('analyzeBtn').disabled = true;
+            document.getElementById('fileInput').value = '';
+            resetResults();
+        }
+
+        function resetResults() {
+            document.getElementById('resultsSection').classList.remove('show');
+            document.getElementById('loadingSpinner').classList.remove('show');
+        }
+
+        async function analyzeImage() {
+            if (!currentImageFile) {
+                alert('Please select or capture an image first.');
+                return;
+            }
+
+            // Show loading spinner
+            document.getElementById('loadingSpinner').classList.add('show');
+            document.getElementById('resultsSection').classList.remove('show');
+
+            const formData = new FormData();
+            formData.append('image', currentImageFile);
+
+            try {
+                const response = await fetch('/predict/cow', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+                
+                // Hide loading spinner
+                document.getElementById('loadingSpinner').classList.remove('show');
+
+                if (result.success) {
+                    displayResults(result);
+                } else {
+                    alert('Error analyzing image: ' + result.error);
+                }
+            } catch (error) {
+                document.getElementById('loadingSpinner').classList.remove('show');
+                alert('Error analyzing image: ' + error.message);
+            }
+        }
+
+        function displayResults(result) {
+            const resultsSection = document.getElementById('resultsSection');
+            const resultSummary = document.getElementById('resultSummary');
+            const confidenceBar = document.getElementById('confidenceBar');
+            const confidenceText = document.getElementById('confidenceText');
+            const resultDetails = document.getElementById('resultDetails');
+
+            // Display main result
+            const mainPrediction = result.predictions[0];
+            resultSummary.innerHTML = `
+                <h4>Detected: <span style="color: ${mainPrediction.class === 'Healthy' ? '#28a745' : '#dc3545'}">${mainPrediction.class}</span></h4>
+            `;
+
+            // Update confidence bar
+            const confidence = Math.round(mainPrediction.confidence * 100);
+            confidenceBar.style.width = confidence + '%';
+            confidenceText.textContent = confidence + '% Confidence';
+
+            // Display all predictions
+            let detailsHTML = '<h4>All Detections:</h4>';
+            result.predictions.forEach((pred, index) => {
+                const confidence = Math.round(pred.confidence * 100);
+                detailsHTML += `
+                    <div class="result-item">
+                        <span>${pred.class}</span>
+                        <span>${confidence}%</span>
+                    </div>
+                `;
+            });
+
+            resultDetails.innerHTML = detailsHTML;
+            resultsSection.classList.add('show');
+
+            // Scroll to results
+            resultsSection.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Cleanup camera on page unload
+        window.addEventListener('beforeunload', function() {
+            stopCamera();
+        });
+    </script>
+</body>
+</html>

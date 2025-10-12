@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GoRaksha AI - Veterinary Assistant</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/chatbot.css') }}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <i class="fas fa-paw"></i>
+                <span>GoRaksha AI</span>
+            </div>
+            <div class="nav-links">
+                <a href="{{ url_for('dashboard') }}" class="nav-link">
+                    <i class="fas fa-home"></i>
+                    Dashboard
+                </a>
+                <a href="#" class="nav-link active">
+                    <i class="fas fa-robot"></i>
+                    Veterinary Assistant
+                </a>
+                <a href="{{ url_for('logout') }}" class="nav-link">
+                    <i class="fas fa-sign-out-alt"></i>
+                    Logout
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="chatbot-container">
+            <!-- Chatbot Header -->
+            <div class="chatbot-header">
+                <div class="chatbot-info">
+                    <div class="chatbot-avatar">
+                        <i class="fas fa-user-md"></i>
+                    </div>
+                    <div class="chatbot-details">
+                        <h2>🐾 AI Veterinary Assistant</h2>
+                        <p class="status-indicator">
+                            <span class="status-dot online"></span>
+                            Online - Ready to help with animal health
+                        </p>
+                    </div>
+                </div>
+                <div class="chatbot-controls">
+                    <!-- Language Selector -->
+                    <div class="language-selector">
+                        <select id="languageSelect" class="language-select">
+                            <option value="en">🇺🇸 English</option>
+                            <option value="hi">🇮🇳 हिन्दी</option>
+                            <option value="mr">🇮🇳 मराठी</option>
+                            <option value="gu">🇮🇳 ગુજરાતી</option>
+                            <option value="ta">🇮🇳 தமிழ்</option>
+                            <option value="te">🇮🇳 తెలుగు</option>
+                            <option value="kn">🇮🇳 ಕನ್ನಡ</option>
+                            <option value="ml">🇮🇳 മലയാളം</option>
+                        </select>
+                    </div>
+                    <!-- Settings Button -->
+                    <button id="settingsBtn" class="control-btn" title="Settings">
+                        <i class="fas fa-cog"></i>
+                    </button>
+                    <!-- Clear Chat Button -->
+                    <button id="clearChatBtn" class="control-btn" title="Clear Chat">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Chat Messages Area -->
+            <div class="chat-messages" id="chatMessages">
+                <div class="welcome-message">
+                    <div class="message bot-message">
+                        <div class="message-avatar">
+                            <i class="fas fa-user-md"></i>
+                        </div>
+                        <div class="message-content">
+                            <div class="message-text">
+                                <h3>🩺 Welcome to your AI Veterinary Assistant!</h3>
+                                <div class="features-grid-chat">
+                                    <div class="feature-item">
+                                        <i class="fas fa-stethoscope"></i>
+                                        <span>Disease Diagnosis & Symptoms</span>
+                                    </div>
+                                    <div class="feature-item">
+                                        <i class="fas fa-pills"></i>
+                                        <span>Treatment Recommendations</span>
+                                    </div>
+                                    <div class="feature-item">
+                                        <i class="fas fa-shield-alt"></i>
+                                        <span>Prevention Strategies</span>
+                                    </div>
+                                    <div class="feature-item">
+                                        <i class="fas fa-camera"></i>
+                                        <span>Image Analysis</span>
+                                    </div>
+                                </div>
+                                <div class="quick-start">
+                                    <p><strong>🚀 Quick Start:</strong></p>
+                                    <ul>
+                                        <li>📝 Describe your animal's symptoms</li>
+                                        <li>📸 Upload photos for visual analysis</li>
+                                        <li>🎤 Use voice input for hands-free interaction</li>
+                                        <li>📋 Get detailed treatment plans</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chat Input Area -->
+            <div class="chat-input-area">
+                <!-- Quick Action Buttons -->
+                <div class="quick-actions" id="quickActions">
+                    <button class="quick-action" data-action="symptoms">
+                        <i class="fas fa-thermometer-half"></i>
+                        Check Symptoms
+                    </button>
+                    <button class="quick-action" data-action="treatment">
+                        <i class="fas fa-pills"></i>
+                        Treatment Guide
+                    </button>
+                    <button class="quick-action" data-action="prevention">
+                        <i class="fas fa-shield-alt"></i>
+                        Prevention Tips
+                    </button>
+                    <button class="quick-action" data-action="emergency">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        Emergency Help
+                    </button>
+                </div>
+
+                <div class="input-container">
+                    <!-- File Upload Button -->
+                    <button id="fileUploadBtn" class="input-btn" title="Upload Animal Photos or Documents">
+                        <i class="fas fa-camera"></i>
+                    </button>
+                    
+                    <!-- Voice Input Button -->
+                    <button id="voiceBtn" class="input-btn" title="Voice Input">
+                        <i class="fas fa-microphone"></i>
+                    </button>
+                    
+                    <!-- Text Input -->
+                    <div class="text-input-container">
+                        <textarea id="messageInput" placeholder="Describe your animal's condition, symptoms, or ask any veterinary question..." rows="1"></textarea>
+                        <div class="input-suggestions" id="inputSuggestions" style="display: none;">
+                            <div class="suggestion" data-text="My cow is showing signs of fever and loss of appetite. What could be the cause?">
+                                <i class="fas fa-thermometer-half"></i>
+                                Cattle fever symptoms
+                            </div>
+                            <div class="suggestion" data-text="How do I treat mastitis in my dairy cow?">
+                                <i class="fas fa-medkit"></i>
+                                Mastitis treatment
+                            </div>
+                            <div class="suggestion" data-text="What are the prevention methods for foot-and-mouth disease?">
+                                <i class="fas fa-shield-alt"></i>
+                                FMD prevention
+                            </div>
+                            <div class="suggestion" data-text="My goat has skin lesions. Can you help identify the disease?">
+                                <i class="fas fa-search"></i>
+                                Skin disease diagnosis
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Send Button -->
+                    <button id="sendBtn" class="send-btn" disabled>
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+
+                <!-- File Upload Area (Hidden by default) -->
+                <div class="file-upload-area" id="fileUploadArea" style="display: none;">
+                    <div class="upload-content">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        <p>Drop animal photos or veterinary documents here</p>
+                        <small>Supported: Images (JPG, PNG, WebP) and PDF documents (Max 16MB)</small>
+                        <button class="browse-btn" onclick="document.getElementById('fileInput').click()">
+                            Browse Files
+                        </button>
+                    </div>
+                    <input type="file" id="fileInput" accept=".jpg,.jpeg,.png,.webp,.pdf" style="display: none;">
+                </div>
+            </div>
+        </div>
+
+        <!-- Disease Categories Sidebar -->
+        <div class="disease-categories" id="diseaseCategories">
+            <h3>🦠 Common Animal Diseases</h3>
+            <div class="category-list">
+                <div class="category-item" data-category="cattle">
+                    <i class="fas fa-cow"></i>
+                    <span>Cattle Diseases</span>
+                </div>
+                <div class="category-item" data-category="poultry">
+                    <i class="fas fa-egg"></i>
+                    <span>Poultry Diseases</span>
+                </div>
+                <div class="category-item" data-category="goat">
+                    <i class="fas fa-horse"></i>
+                    <span>Goat & Sheep</span>
+                </div>
+                <div class="category-item" data-category="swine">
+                    <i class="fas fa-piggy-bank"></i>
+                    <span>Swine Diseases</span>
+                </div>
+                <div class="category-item" data-category="general">
+                    <i class="fas fa-paw"></i>
+                    <span>General Health</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Modal - Hidden (not used) -->
+    <div class="loading-modal" id="loadingModal" style="display: none !important; visibility: hidden;">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <p id="loadingText">🔬 Analyzing your query...</p>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="settings-modal" id="settingsModal" style="display: none;">
+        <div class="settings-content">
+            <div class="settings-header">
+                <h3>⚙️ Assistant Settings</h3>
+                <button id="closeSettingsBtn" class="close-btn">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="settings-body">
+                <div class="setting-group">
+                    <label>🔊 Voice Settings</label>
+                    <div class="setting-item">
+                        <span>Text-to-Speech</span>
+                        <label class="switch">
+                            <input type="checkbox" id="ttsEnabled" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="setting-item">
+                        <span>Voice Input</span>
+                        <label class="switch">
+                            <input type="checkbox" id="voiceInputEnabled" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="setting-group">
+                    <label>🎨 Interface</label>
+                    <div class="setting-item">
+                        <span>Dark Mode</span>
+                        <label class="switch">
+                            <input type="checkbox" id="darkModeEnabled">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="setting-item">
+                        <span>Auto-scroll</span>
+                        <label class="switch">
+                            <input type="checkbox" id="autoScrollEnabled" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            <div class="settings-footer">
+                <button id="cancelSettingsBtn" class="cancel-btn">
+                    <i class="fas fa-times"></i>
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div class="toast-container" id="toastContainer">
+        <!-- Error Toast -->
+        <div class="toast error-toast" id="errorToast" style="display: none;">
+            <div class="toast-content">
+                <i class="fas fa-exclamation-triangle"></i>
+                <span id="errorMessage">Error message</span>
+            </div>
+            <button class="toast-close" id="closeErrorBtn" onclick="this.parentElement.style.display='none'">×</button>
+        </div>
+        
+        <!-- Success Toast -->
+        <div class="toast success-toast" id="successToast" style="display: none;">
+            <div class="toast-content">
+                <i class="fas fa-check-circle"></i>
+                <span id="successMessage">Success message</span>
+            </div>
+            <button class="toast-close" onclick="this.parentElement.style.display='none'">×</button>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="{{ url_for('static', filename='js/chatbot.js') }}"></script>
+</body>
+</html>

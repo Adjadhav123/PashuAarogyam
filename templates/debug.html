@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug - GoRakshaAI</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            background: #f9f9f9;
+        }
+        .button {
+            background: #2E8B57;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .output {
+            background: white;
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 10px;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>GoRakshaAI Debug Panel</h1>
+    
+    <div class="section">
+        <h2>Consultation Requests</h2>
+        <button class="button" onclick="loadRequests()">Load All Requests</button>
+        <div class="output" id="requestsOutput">Click "Load All Requests" to see data...</div>
+    </div>
+    
+    <div class="section">
+        <h2>Consultants</h2>
+        <button class="button" onclick="loadConsultants()">Load All Consultants</button>
+        <div class="output" id="consultantsOutput">Click "Load All Consultants" to see data...</div>
+    </div>
+    
+    <div class="section">
+        <h2>Test Consultation Request Creation</h2>
+        <form id="testForm">
+            <div style="margin-bottom: 10px;">
+                <label>Farmer Name: <input type="text" name="farmer_name" value="Test Farmer" required></label>
+            </div>
+            <div style="margin-bottom: 10px;">
+                <label>Farm Name: <input type="text" name="farm_name" value="Test Farm" required></label>
+            </div>
+            <div style="margin-bottom: 10px;">
+                <label>Phone: <input type="text" name="contact_phone" value="1234567890" required></label>
+            </div>
+            <div style="margin-bottom: 10px;">
+                <label>Animal Type: 
+                    <select name="animal_type" required>
+                        <option value="Cattle">Cattle</option>
+                        <option value="Buffalo">Buffalo</option>
+                        <option value="Goat">Goat</option>
+                    </select>
+                </label>
+            </div>
+            <div style="margin-bottom: 10px;">
+                <label>Symptoms: <textarea name="symptoms" required>Test symptoms for debugging</textarea></label>
+            </div>
+            <div style="margin-bottom: 10px;">
+                <label>Assigned To (Consultant ID): <input type="text" name="assigned_to" placeholder="Leave empty for auto-assign"></label>
+            </div>
+            <button type="submit" class="button">Submit Test Request</button>
+        </form>
+        <div class="output" id="testOutput">Submit form to see result...</div>
+    </div>
+
+    <script>
+        async function loadRequests() {
+            try {
+                const response = await fetch('/api/debug/requests');
+                const data = await response.json();
+                document.getElementById('requestsOutput').textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('requestsOutput').textContent = 'Error: ' + error.message;
+            }
+        }
+
+        async function loadConsultants() {
+            try {
+                const response = await fetch('/api/debug/consultants');
+                const data = await response.json();
+                document.getElementById('consultantsOutput').textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('consultantsOutput').textContent = 'Error: ' + error.message;
+            }
+        }
+
+        document.getElementById('testForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData.entries());
+            
+            // Convert empty assigned_to to null
+            if (!data.assigned_to) {
+                data.assigned_to = null;
+            }
+            
+            console.log('Submitting test data:', data);
+            
+            try {
+                const response = await fetch('/api/consultation-request', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                document.getElementById('testOutput').textContent = JSON.stringify(result, null, 2);
+                
+                // Reload requests to see the new one
+                setTimeout(loadRequests, 1000);
+                
+            } catch (error) {
+                document.getElementById('testOutput').textContent = 'Error: ' + error.message;
+            }
+        });
+
+        // Load data on page load
+        loadRequests();
+        loadConsultants();
+    </script>
+</body>
+</html>

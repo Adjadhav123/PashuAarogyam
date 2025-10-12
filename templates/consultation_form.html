@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Consultation Form - GoRakshaAI</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #e8f5e8, #f0f8ff);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .form-header {
+            background: linear-gradient(135deg, #2E8B57, #3CB371);
+            color: white;
+            text-align: center;
+            padding: 40px 20px;
+            position: relative;
+        }
+
+        .form-header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .form-header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .selected-consultant {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .consultant-avatar {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+
+        .consultant-info h3 {
+            margin-bottom: 5px;
+        }
+
+        .consultant-info p {
+            opacity: 0.8;
+            font-size: 14px;
+        }
+
+        .consultation-form {
+            padding: 40px;
+        }
+
+        .form-section {
+            margin-bottom: 40px;
+        }
+
+        .form-section h3 {
+            color: #2E8B57;
+            font-size: 1.3em;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #e8f5e8;
+        }
+
+        .section-desc {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            background: #fafafa;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            background: white;
+            outline: none;
+            border-color: #2E8B57;
+            box-shadow: 0 0 0 3px rgba(46, 139, 87, 0.1);
+        }
+
+        .required {
+            color: #d32f2f;
+        }
+
+        .urgency-options {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-top: 10px;
+        }
+
+        .urgency-option {
+            padding: 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .urgency-option.selected {
+            border-color: #2E8B57;
+            background: #f0f8ff;
+        }
+
+        .urgency-option.high {
+            border-color: #ff5722;
+        }
+
+        .urgency-option.high.selected {
+            background: #ffebee;
+            border-color: #d32f2f;
+        }
+
+        .urgency-option.medium {
+            border-color: #ff9800;
+        }
+
+        .urgency-option.medium.selected {
+            background: #fff3e0;
+            border-color: #f57c00;
+        }
+
+        .urgency-option.low {
+            border-color: #4caf50;
+        }
+
+        .urgency-option.low.selected {
+            background: #e8f5e8;
+            border-color: #388e3c;
+        }
+
+        .urgency-icon {
+            font-size: 24px;
+            display: block;
+            margin-bottom: 10px;
+        }
+
+        .urgency-content strong {
+            display: block;
+            font-size: 16px;
+            margin-bottom: 5px;
+        }
+
+        .urgency-content p {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .submit-section {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 30px;
+            border-top: 2px solid #e8f5e8;
+        }
+
+        .submit-btn {
+            background: linear-gradient(135deg, #2E8B57, #3CB371);
+            color: white;
+            border: none;
+            padding: 18px 50px;
+            border-radius: 50px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 20px rgba(46, 139, 87, 0.3);
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(46, 139, 87, 0.4);
+        }
+
+        .submit-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .back-btn {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-size: 14px;
+            cursor: pointer;
+            margin-right: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .back-btn:hover {
+            background: #5a6268;
+            transform: translateY(-1px);
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+
+        .alert.error {
+            background-color: #ffebee;
+            color: #d32f2f;
+            border: 1px solid #ffcdd2;
+        }
+
+        .alert.success {
+            background-color: #e8f5e8;
+            color: #2e7d32;
+            border: 1px solid #c8e6c9;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            color: #2E8B57;
+            font-weight: 600;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #2E8B57;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Chat Integration Styles */
+        .chat-integration {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 25px;
+            margin-top: 30px;
+            border: 2px solid #e8f5e8;
+        }
+
+        .chat-info {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .chat-info h4 {
+            color: #2E8B57;
+            margin-bottom: 10px;
+        }
+
+        .chat-info p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .open-chat-btn {
+            background: linear-gradient(135deg, #17a2b8, #20c997);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 15px;
+        }
+
+        .open-chat-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(23, 162, 184, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="form-header">
+            <h1>🩺 Consultation Form</h1>
+            <p>Complete your consultation details and start chatting with your veterinarian</p>
+            
+            <!-- Selected Consultant Info -->
+            <div class="selected-consultant" id="selectedConsultantInfo">
+                <div class="consultant-avatar">👩‍⚕️</div>
+                <div class="consultant-info">
+                    <h3 id="consultantName">Loading...</h3>
+                    <p id="consultantSpecialty">Veterinary Specialist</p>
+                </div>
+            </div>
+        </div>
+
+        <form class="consultation-form" id="consultationForm">
+            <div id="alertContainer"></div>
+
+            <!-- Farmer Information -->
+            <div class="form-section">
+                <h3>👨‍🌾 Farmer Information</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="farmer_name">Full Name <span class="required">*</span></label>
+                        <input type="text" id="farmer_name" name="farmer_name" required placeholder="Enter your full name">
+                    </div>
+                    <div class="form-group">
+                        <label for="contact_phone">Phone Number <span class="required">*</span></label>
+                        <input type="tel" id="contact_phone" name="contact_phone" required placeholder="+91 9876543210">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="farm_name">Farm Name <span class="required">*</span></label>
+                        <input type="text" id="farm_name" name="farm_name" required placeholder="Enter your farm name">
+                    </div>
+                    <div class="form-group">
+                        <label for="farmer_email">Email Address</label>
+                        <input type="email" id="farmer_email" name="farmer_email" placeholder="your.email@example.com">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="location">Location</label>
+                    <input type="text" id="location" name="location" placeholder="City, State, Country">
+                </div>
+            </div>
+
+            <!-- Animal Information -->
+            <div class="form-section">
+                <h3>🐄 Animal Information</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="animal_type">Animal Type <span class="required">*</span></label>
+                        <select id="animal_type" name="animal_type" required>
+                            <option value="">Select Animal Type</option>
+                            <option value="Cattle">Cattle (Cow/Bull)</option>
+                            <option value="Buffalo">Buffalo</option>
+                            <option value="Goat">Goat</option>
+                            <option value="Sheep">Sheep</option>
+                            <option value="Pig">Pig</option>
+                            <option value="Horse">Horse</option>
+                            <option value="Dog">Dog</option>
+                            <option value="Cat">Cat</option>
+                            <option value="Poultry">Poultry (Chicken/Duck)</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="animal_breed">Breed</label>
+                        <input type="text" id="animal_breed" name="animal_breed" placeholder="e.g., Holstein, Jersey, etc.">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="animal_age">Age</label>
+                    <input type="text" id="animal_age" name="animal_age" placeholder="e.g., 2 years, 6 months">
+                </div>
+            </div>
+
+            <!-- Health Information -->
+            <div class="form-section">
+                <h3>🏥 Health Information</h3>
+                <div class="form-group">
+                    <label for="symptoms">Symptoms/Concerns <span class="required">*</span></label>
+                    <textarea id="symptoms" name="symptoms" required rows="4" placeholder="Describe the symptoms you've observed (e.g., loss of appetite, fever, unusual behavior, physical changes, etc.)"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="duration">Duration of Symptoms</label>
+                    <input type="text" id="duration" name="duration" placeholder="e.g., 2 days, 1 week">
+                </div>
+                
+                <div class="form-group">
+                    <label for="urgency">Urgency Level <span class="required">*</span></label>
+                    <div class="urgency-options">
+                        <div class="urgency-option high" onclick="selectUrgency('High', this)">
+                            <span class="urgency-icon">🔴</span>
+                            <div class="urgency-content">
+                                <strong>High</strong>
+                                <p>Emergency - Immediate attention needed</p>
+                            </div>
+                        </div>
+                        <div class="urgency-option medium selected" onclick="selectUrgency('Medium', this)">
+                            <span class="urgency-icon">🟡</span>
+                            <div class="urgency-content">
+                                <strong>Medium</strong>
+                                <p>Concerning - Should be addressed soon</p>
+                            </div>
+                        </div>
+                        <div class="urgency-option low" onclick="selectUrgency('Low', this)">
+                            <span class="urgency-icon">🟢</span>
+                            <div class="urgency-content">
+                                <strong>Low</strong>
+                                <p>Routine - General advice needed</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="additional_notes">Additional Notes</label>
+                    <textarea id="additional_notes" name="additional_notes" rows="3" placeholder="Any additional information that might be helpful (recent changes in diet, environment, medications, etc.)"></textarea>
+                </div>
+            </div>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                Submitting your consultation request...
+            </div>
+
+            <div class="submit-section">
+                <button type="button" class="back-btn" onclick="goBack()">
+                    ← Back to Consultant Selection
+                </button>
+                <button type="submit" class="submit-btn" id="submitBtn">
+                    Submit & Go to Dashboard
+                </button>
+            </div>
+
+            <!-- Chat Integration Section -->
+            <div class="chat-integration" id="chatIntegration" style="display: none;">
+                <div class="chat-info">
+                    <h4>🎉 Consultation Request Submitted!</h4>
+                    <p>Your request has been sent to the selected consultant. You can now start chatting.</p>
+                    <button type="button" class="open-chat-btn" onclick="openChat()">
+                        💬 Open Chat with Consultant
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        let selectedUrgency = 'Medium';
+        let selectedConsultant = null;
+        let consultationId = null;
+
+        // Load page data when DOM is ready
+        document.addEventListener('DOMContentLoaded', function() {
+            // Get selected consultant from session storage
+            let consultantFromStorage = sessionStorage.getItem('selectedConsultant');
+            
+            // Handle sessionStorage returning string "null" vs actual null
+            if (consultantFromStorage === "null") {
+                selectedConsultant = null;
+            } else if (consultantFromStorage === null || consultantFromStorage === undefined) {
+                // No consultant selected, redirect back
+                window.location.href = '/consultation-request';
+                return;
+            } else {
+                selectedConsultant = consultantFromStorage;
+            }
+            
+            console.log('Selected consultant from storage:', consultantFromStorage);
+            console.log('Processed selectedConsultant:', selectedConsultant);
+            
+            // Load consultant information
+            loadConsultantInfo();
+        });
+
+        // Load consultant information
+        async function loadConsultantInfo() {
+            if (selectedConsultant === null) {
+                // Auto-assign case
+                document.getElementById('consultantName').textContent = 'Auto-assign';
+                document.getElementById('consultantSpecialty').textContent = 'System will assign the best available consultant';
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/consultant/${selectedConsultant}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    const consultant = data.consultant;
+                    document.getElementById('consultantName').textContent = consultant.name;
+                    document.getElementById('consultantSpecialty').textContent = consultant.specialty || 'Veterinary Specialist';
+                } else {
+                    document.getElementById('consultantName').textContent = 'Selected Consultant';
+                    document.getElementById('consultantSpecialty').textContent = 'Veterinary Specialist';
+                }
+            } catch (error) {
+                console.error('Error loading consultant info:', error);
+                document.getElementById('consultantName').textContent = 'Selected Consultant';
+                document.getElementById('consultantSpecialty').textContent = 'Veterinary Specialist';
+            }
+        }
+
+        // Urgency selection
+        function selectUrgency(urgency, element) {
+            // Remove selected class from all options
+            document.querySelectorAll('.urgency-option').forEach(option => {
+                option.classList.remove('selected');
+            });
+            
+            // Add selected class to clicked option
+            element.classList.add('selected');
+            
+            // Update selected urgency
+            selectedUrgency = urgency;
+        }
+
+        // Go back to consultant selection
+        function goBack() {
+            window.location.href = '/consultation-request';
+        }
+
+        // Alert functions
+        function showAlert(message, type = 'error') {
+            const container = document.getElementById('alertContainer');
+            container.innerHTML = `<div class="alert ${type}">${message}</div>`;
+            container.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function hideAlert() {
+            document.getElementById('alertContainer').innerHTML = '';
+        }
+
+        // Loading state
+        function setLoading(isLoading) {
+            const loading = document.getElementById('loading');
+            const submitBtn = document.getElementById('submitBtn');
+            
+            loading.style.display = isLoading ? 'block' : 'none';
+            submitBtn.disabled = isLoading;
+        }
+
+        // Form submission
+        document.getElementById('consultationForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            hideAlert();
+            setLoading(true);
+
+            // Collect form data
+            const formData = new FormData(e.target);
+            const data = {
+                farmer_name: formData.get('farmer_name'),
+                contact_phone: formData.get('contact_phone'),
+                farm_name: formData.get('farm_name'),
+                farmer_email: formData.get('farmer_email'),
+                location: formData.get('location'),
+                animal_type: formData.get('animal_type'),
+                animal_breed: formData.get('animal_breed'),
+                animal_age: formData.get('animal_age'),
+                symptoms: formData.get('symptoms'),
+                duration: formData.get('duration'),
+                urgency: selectedUrgency,
+                additional_notes: formData.get('additional_notes'),
+                assigned_to: selectedConsultant
+            };
+
+            console.log('Form submission data:', data);
+            console.log('Assigned to consultant:', selectedConsultant);
+
+            try {
+                const response = await fetch('/api/consultation-request', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    consultationId = result.request_id;
+                    
+                    // Show success message briefly then redirect to dashboard
+                    showAlert('Consultation request submitted successfully! Redirecting to dashboard...', 'success');
+                    
+                    // Clear session storage
+                    sessionStorage.removeItem('selectedConsultant');
+                    
+                    // Redirect to dashboard after a short delay
+                    setTimeout(() => {
+                        window.location.href = '/dashboard';
+                    }, 2000);
+                } else {
+                    showAlert(result.message || 'Failed to submit consultation request. Please try again.');
+                }
+            } catch (error) {
+                console.error('Error submitting consultation request:', error);
+                showAlert('Network error. Please check your connection and try again.');
+            } finally {
+                setLoading(false);
+            }
+        });
+
+        // Open chat with consultant
+        function openChat() {
+            if (consultationId) {
+                // Redirect to consultation request page where chat is available
+                window.location.href = `/consultation-request?open_chat=${consultationId}`;
+            } else {
+                // Fallback - go to main consultation page
+                window.location.href = '/consultation-request';
+            }
+        }
+
+        // Clear alerts when user starts typing
+        const inputs = document.querySelectorAll('input, select, textarea');
+        inputs.forEach(input => {
+            input.addEventListener('input', hideAlert);
+        });
+    </script>
+</body>
+</html>
