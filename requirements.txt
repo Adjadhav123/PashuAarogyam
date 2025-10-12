@@ -30,3 +30,9 @@ python-magic-bin
 deep-translator
 requests
 httpcore
+gunicorn
+psycopg2-binary
+python-decouple
+whitenoise
+redis
+flask-cors
