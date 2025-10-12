@@ -118,6 +118,8 @@ def initialize_mongodb():
             users_collection.create_index("email", unique=True)
             predictions_collection.create_index("user_id")
             predictions_collection.create_index("created_at")
+            predictions_collection.create_index("animal_type")
+            predictions_collection.create_index("prediction")
             consultants_collection.create_index("email", unique=True)
             consultation_requests_collection.create_index("status")
             consultation_requests_collection.create_index("created_at")
@@ -1301,12 +1303,18 @@ def predict_cat():
             # Store prediction in database if available
             if predictions_collection is not None:
                 try:
+                    # Get the top prediction for main storage
+                    top_prediction = predictions[0] if predictions else {'class': 'Unknown', 'confidence': 0.0}
+                    
                     prediction_doc = {
                         'user_id': session.get('user_id'),
                         'username': session.get('user_name'),
                         'animal_type': 'cat',
-                        'predictions': predictions,
-                        'timestamp': datetime.now(timezone.utc),
+                        'prediction': top_prediction['class'],  # Main predicted disease
+                        'confidence': top_prediction['confidence'],  # Confidence score
+                        'predictions': predictions,  # All predictions for reference
+                        'created_at': datetime.now(timezone.utc),  # Date of prediction
+                        'timestamp': datetime.now(timezone.utc),  # Keep for backward compatibility
                         'model_used': 'cat_disease_best.pt'
                     }
                     predictions_collection.insert_one(prediction_doc)
@@ -1401,12 +1409,18 @@ def predict_cow():
             # Store prediction in database if available
             if predictions_collection is not None:
                 try:
+                    # Get the top prediction for main storage
+                    top_prediction = predictions[0] if predictions else {'class': 'Unknown', 'confidence': 0.0}
+                    
                     prediction_doc = {
                         'user_id': session.get('user_id'),
                         'username': session.get('user_name'),
                         'animal_type': 'cow',
-                        'predictions': predictions,
-                        'timestamp': datetime.now(timezone.utc),
+                        'prediction': top_prediction['class'],  # Main predicted disease
+                        'confidence': top_prediction['confidence'],  # Confidence score
+                        'predictions': predictions,  # All predictions for reference
+                        'created_at': datetime.now(timezone.utc),  # Date of prediction
+                        'timestamp': datetime.now(timezone.utc),  # Keep for backward compatibility
                         'model_used': 'lumpy_disease_best.pt'
                     }
                     predictions_collection.insert_one(prediction_doc)
@@ -1514,12 +1528,18 @@ def predict_dog():
             # Store prediction in database if available
             if predictions_collection is not None:
                 try:
+                    # Get the top prediction for main storage
+                    top_prediction = predictions[0] if predictions else {'class': 'Unknown', 'confidence': 0.0}
+                    
                     prediction_doc = {
                         'user_id': session.get('user_id'),
                         'username': session.get('user_name'),
                         'animal_type': 'dog',
-                        'predictions': predictions,
-                        'timestamp': datetime.now(timezone.utc),
+                        'prediction': top_prediction['class'],  # Main predicted disease
+                        'confidence': top_prediction['confidence'],  # Confidence score
+                        'predictions': predictions,  # All predictions for reference
+                        'created_at': datetime.now(timezone.utc),  # Date of prediction
+                        'timestamp': datetime.now(timezone.utc),  # Keep for backward compatibility
                         'model_used': 'dog_disease_best.pt'
                     }
                     predictions_collection.insert_one(prediction_doc)
