@@ -10,7 +10,7 @@
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
 </head>
 <body>
-    <!-- Header -->
+    
     <header class="header">
         <nav class="nav-container">
             <div class="logo">PashuAarogyam</div>
@@ -349,6 +349,58 @@
                     </div>
                 `;
             });
+
+            // Add treatment section if available
+            if (result.treatment) {
+                detailsHTML += `
+                    <div class="treatment-section">
+                        <div class="treatment-header">
+                            <h3>🏥 Treatment Recommendations</h3>
+                        </div>
+                        
+                        <div class="treatment-description">
+                            <h4>Condition Overview</h4>
+                            <p>${result.treatment.description}</p>
+                            <br>
+                            <h4>Treatment Approach</h4>
+                            <p>${result.treatment.treatment}</p>
+                        </div>
+                        
+                        <h4 style="color: #2E8B57; margin-bottom: 1rem;">💊 Recommended Medicines</h4>
+                        <div class="medicines-grid">
+                `;
+
+                // Add medicine cards
+                result.treatment.medicines.forEach(medicine => {
+                    detailsHTML += `
+                        <div class="medicine-card">
+                            <img src="${medicine.image}" alt="${medicine.name}" class="medicine-image" 
+                                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                            <div style="display:none; height:150px; background: linear-gradient(135deg, #f8f9fa, #e9ecef); 
+                                        border-radius: 8px; align-items: center; justify-content: center; 
+                                        color: #6c757d; font-size: 2rem; margin-bottom: 1rem;">💊</div>
+                            <div class="medicine-info">
+                                <h5>${medicine.name}</h5>
+                                <span class="medicine-type">${medicine.type}</span>
+                                <p class="medicine-dosage"><strong>Dosage:</strong> ${medicine.dosage}</p>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                detailsHTML += `
+                        </div>
+                        
+                        <div class="treatment-notice">
+                            <h4>⚠️ VETERINARY CONSULTATION REQUIRED</h4>
+                            <p><strong>DISCLAIMER:</strong> These are AI-generated treatment suggestions based on the detected condition. 
+                               <strong>DO NOT</strong> administer any medication without first consulting a licensed veterinarian. 
+                               Proper diagnosis, dosage calculation, and treatment monitoring require professional veterinary expertise. 
+                               Dosages may vary significantly based on your cattle's weight, age, health condition, and other medications.</p>
+                        </div>
+                    </div>
+                `;
+            }
 
             resultDetails.innerHTML = detailsHTML;
             resultsSection.classList.add('show');

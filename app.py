@@ -88,7 +88,7 @@ def initialize_mongodb():
         # Create MongoDB client with proper configuration
         client = MongoClient(
             MONGODB_URI,
-            serverSelectionTimeoutMS=30000,  # 30 seconds
+            serverSelectionTimeoutMS=30000,  
             connectTimeoutMS=20000,          # 20 seconds
             socketTimeoutMS=20000,           # 20 seconds
             maxPoolSize=50,
@@ -347,6 +347,627 @@ try:
 except Exception as e:
     print(f"❌ Error loading YOLO models: {e}")
     models = {}
+
+# Treatment and Medicine Database
+TREATMENT_DATABASE = {
+    'cat': {
+        'Ring Worm': {
+            'description': 'Fungal infection causing circular hair loss and scaling',
+            'treatment': 'Antifungal therapy and topical treatments are essential for recovery',
+            'medicines': [
+                {
+                    'name': 'Itraconazole (Sporanox)',
+                    'type': 'Systemic Antifungal',
+                    'dosage': '5-10mg per kg daily for 4-6 weeks',
+                    'image': 'https://images.unsplash.com/photo-1584362917165-526a968579e8?w=300&h=200&fit=crop'
+                },
+                {
+                    'name': 'Chlorhexidine + Miconazole Shampoo',
+                    'type': 'Antifungal Shampoo',
+                    'dosage': 'Bathe twice weekly for 6-8 weeks',
+                    'image': 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=300&h=200&fit=crop'
+                },
+                {
+                    'name': 'Enilconazole (Imaverol)',
+                    'type': 'Topical Antifungal Solution',
+                    'dosage': 'Dilute 1:50 and apply every 3-4 days',
+                    'image': 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?w=300&h=200&fit=crop'
+                },
+                {
+                    'name': 'Griseofulvin',
+                    'type': 'Oral Antifungal',
+                    'dosage': '25-50mg per kg daily with fatty meal',
+                    'image': 'https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=300&h=200&fit=crop'
+                }
+            ]
+        },
+        'Feline Calicivirus': {
+            'description': 'Viral respiratory infection common in cats',
+            'treatment': 'Supportive care and symptom management are key to recovery',
+            'medicines': [
+                {
+                    'name': 'Famciclovir (Famvir)',
+                    'type': 'Antiviral Medication',
+                    'dosage': '62.5mg twice daily for 10-14 days',
+                    'image': 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=300&h=200&fit=crop'
+                },
+                {
+                    'name': 'Doxycycline',
+                    'type': 'Broad Spectrum Antibiotic',
+                    'dosage': '5mg per kg twice daily for 7-10 days',
+                    'image': 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?w=300&h=200&fit=crop'
+                },
+                {
+                    'name': 'L-Lysine HCl (Viralys)',
+                    'type': 'Immune Support Supplement',
+                    'dosage': '250-500mg daily in food',
+                    'image': 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=300&h=200&fit=crop'
+                },
+                {
+                    'name': 'Terramycin Eye Ointment',
+                    'type': 'Antibiotic Eye Treatment',
+                    'dosage': 'Apply to eyes 2-3 times daily',
+                    'image': 'https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=300&h=200&fit=crop'
+                }
+            ]
+        },
+        'Flea Allergy': {
+            'description': 'Allergic reaction to flea bites causing intense itching',
+            'treatment': 'Flea control and anti-allergic treatment to prevent secondary infections',
+            'medicines': [
+                {
+                    'name': 'Revolution (Selamectin)',
+                    'type': 'Topical Flea & Tick Treatment',
+                    'dosage': 'Apply monthly between shoulder blades',
+                    'image': 'https://images.unsplash.com/photo-1584362917165-526a968579e8?w=300&h=200&fit=crop'
+                },
+                {
+                    'name': 'Prednisolone Acetate',
+                    'type': 'Corticosteroid Anti-inflammatory',
+                    'dosage': '1-2mg per kg daily, then taper over 2 weeks',
+                    'image': 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?w=300&h=200&fit=crop'
+                },
+                {
+                    'name': 'Benadryl (Diphenhydramine)',
+                    'type': 'Antihistamine',
+                    'dosage': '1mg per kg twice daily',
+                    'image': 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=300&h=200&fit=crop'
+                },
+                {
+                    'name': 'Advantage II Flea Spray',
+                    'type': 'Environmental Flea Control',
+                    'dosage': 'Spray on bedding and carpet weekly',
+                    'image': 'https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=300&h=200&fit=crop'
+                }
+            ]
+        },
+        'Healthy': {
+            'description': 'Your cat appears to be in good health',
+            'treatment': 'Continue regular preventive care and monitoring',
+            'medicines': [
+                {
+                    'name': 'Multivitamin Supplement',
+                    'type': 'Nutritional Support',
+                    'dosage': 'As per manufacturer guidelines',
+                    'image': 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=300&h=200&fit=crop'
+                },
+                {
+                    'name': 'Omega-3 Fish Oil',
+                    'type': 'Coat and Skin Health',
+                    'dosage': '1000mg daily with food',
+                    'image': 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=300&h=200&fit=crop'
+                },
+                {
+                    'name': 'Dental Care Treats',
+                    'type': 'Oral Health',
+                    'dosage': '1-2 treats daily',
+                    'image': 'https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=300&h=200&fit=crop'
+                },
+                {
+                    'name': 'Probiotic Supplement',
+                    'type': 'Digestive Health',
+                    'dosage': 'As per veterinary recommendation',
+                    'image': 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?w=300&h=200&fit=crop'
+                }
+            ]
+        },
+        'Feline Dermatitis': {
+            'description': 'Inflammatory skin condition with itching and lesions',
+            'treatment': 'Anti-inflammatory therapy and allergen management',
+            'medicines': [
+                {
+                    'name': 'Cyclosporine (Atopica)',
+                    'type': 'Immunosuppressive Agent',
+                    'dosage': '5mg per kg once daily, then reduce frequency',
+                    'image': 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?w=300&h=200&fit=crop'
+                },
+                {
+                    'name': 'Hydroxyzine HCl',
+                    'type': 'Antihistamine',
+                    'dosage': '1-2mg per kg twice daily',
+                    'image': 'https://images.unsplash.com/photo-1584362917165-526a968579e8?w=300&h=200&fit=crop'
+                },
+                {
+                    'name': 'Douxo S3 Calm Shampoo',
+                    'type': 'Soothing Medicated Shampoo',
+                    'dosage': 'Bathe weekly, leave on for 5-10 minutes',
+                    'image': 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=300&h=200&fit=crop'
+                },
+                {
+                    'name': 'Dermoscent Essential 6 Spot-On',
+                    'type': 'Natural Skin Care Treatment',
+                    'dosage': 'Apply weekly for 4 weeks, then monthly',
+                    'image': 'https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=300&h=200&fit=crop'
+                }
+            ]
+        },
+        'Upper Respiratory Infection': {
+            'description': 'Common viral or bacterial infection affecting the upper respiratory tract',
+            'treatment': 'Supportive care with antibiotics if bacterial component present',
+            'medicines': [
+                {
+                    'name': 'Amoxicillin-Clavulanate',
+                    'type': 'Broad Spectrum Antibiotic',
+                    'dosage': '12.5mg per kg twice daily',
+                    'image': 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?w=300&h=200&fit=crop'
+                },
+                {
+                    'name': 'L-Lysine Supplement',
+                    'type': 'Immune Support',
+                    'dosage': '250mg twice daily',
+                    'image': 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=300&h=200&fit=crop'
+                },
+                {
+                    'name': 'Saline Nasal Drops',
+                    'type': 'Nasal Decongestant',
+                    'dosage': '1-2 drops per nostril twice daily',
+                    'image': 'https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=300&h=200&fit=crop'
+                },
+                {
+                    'name': 'Humidifier Therapy',
+                    'type': 'Environmental Support',
+                    'dosage': 'Use continuously in living area',
+                    'image': 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=300&h=200&fit=crop'
+                }
+            ]
+        },
+        'Feline Distemper': {
+            'description': 'Highly contagious viral disease affecting the immune system',
+            'treatment': 'Intensive supportive care and hospitalization may be required',
+            'medicines': [
+                {
+                    'name': 'IV Fluid Therapy',
+                    'type': 'Hydration Support',
+                    'dosage': 'As prescribed by veterinarian',
+                    'image': 'https://images.unsplash.com/photo-1584362917165-526a968579e8?w=300&h=200&fit=crop'
+                },
+                {
+                    'name': 'Anti-nausea Medication',
+                    'type': 'Symptom Control',
+                    'dosage': 'As prescribed for vomiting control',
+                    'image': 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?w=300&h=200&fit=crop'
+                },
+                {
+                    'name': 'Broad Spectrum Antibiotic',
+                    'type': 'Secondary Infection Prevention',
+                    'dosage': 'As prescribed by veterinarian',
+                    'image': 'https://images.unsplash.com/photo-1584362917165-526a968579e8?w=300&h=200&fit=crop'
+                },
+                {
+                    'name': 'Nutritional Support',
+                    'type': 'Recovery Aid',
+                    'dosage': 'High-calorie paste as directed',
+                    'image': 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=300&h=200&fit=crop'
+                }
+            ]
+        }
+    },
+    'cow': {
+        'Lumpy Skin Disease': {
+            'description': 'Viral disease causing skin nodules and lesions in cattle',
+            'treatment': 'Supportive care and wound management to prevent secondary infections',
+            'medicines': [
+                {
+                    'name': 'Oxytetracycline LA (Terramycin)',
+                    'type': 'Long-acting Injectable Antibiotic',
+                    'dosage': '20mg per kg intramuscularly every 72 hours',
+                    'image': 'https://images.unsplash.com/photo-1584362917165-526a968579e8?w=300&h=200&fit=crop'
+                },
+                {
+                    'name': 'Flunixin Meglumine (Banamine)',
+                    'type': 'NSAID Anti-inflammatory',
+                    'dosage': '2.2mg per kg intravenously once daily',
+                    'image': 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?w=300&h=200&fit=crop'
+                },
+                {
+                    'name': 'Betadine Solution (Povidone Iodine)',
+                    'type': 'Topical Antiseptic',
+                    'dosage': 'Clean lesions twice daily with 10% solution',
+                    'image': 'https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=300&h=200&fit=crop'
+                },
+                {
+                    'name': 'Vitamin AD3E + B-Complex Injectable',
+                    'type': 'Immune System Support',
+                    'dosage': '5-10ml intramuscularly weekly',
+                    'image': 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=300&h=200&fit=crop'
+                }
+            ]
+        },
+        'Healthy': {
+            'description': 'Your cattle appears to be in good health',
+            'treatment': 'Continue regular preventive care and vaccination schedule',
+            'medicines': [
+                {
+                    'name': 'Mineral Supplement',
+                    'type': 'Nutritional Support',
+                    'dosage': '50-100g daily in feed',
+                    'image': 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=300&h=200&fit=crop'
+                },
+                {
+                    'name': 'Deworming Agent',
+                    'type': 'Parasitic Prevention',
+                    'dosage': 'As per veterinary schedule',
+                    'image': 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=300&h=200&fit=crop'
+                },
+                {
+                    'name': 'Tick Spray',
+                    'type': 'External Parasite Control',
+                    'dosage': 'Apply weekly or as needed',
+                    'image': 'https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=300&h=200&fit=crop'
+                },
+                {
+                    'name': 'Vaccination Booster',
+                    'type': 'Disease Prevention',
+                    'dosage': 'Annual or as recommended',
+                    'image': 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?w=300&h=200&fit=crop'
+                }
+            ]
+        },
+        'Foot and Mouth Disease': {
+            'description': 'Highly contagious viral disease affecting cloven-hoofed animals',
+            'treatment': 'Supportive care and strict quarantine measures',
+            'medicines': [
+                {
+                    'name': 'Foot and Mouth Disease Vaccine',
+                    'type': 'Preventive Vaccine',
+                    'dosage': '2ml intramuscularly, annual booster',
+                    'image': 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?w=300&h=200&fit=crop'
+                },
+                {
+                    'name': 'Zinc Sulfate Foot Bath',
+                    'type': 'Hoof Disinfectant',
+                    'dosage': '5% solution for hoof dipping twice weekly',
+                    'image': 'https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=300&h=200&fit=crop'
+                },
+                {
+                    'name': 'Copper Sulfate Solution',
+                    'type': 'Antiseptic Hoof Treatment',
+                    'dosage': '10% solution applied to affected hooves',
+                    'image': 'https://images.unsplash.com/photo-1584362917165-526a968579e8?w=300&h=200&fit=crop'
+                },
+                {
+                    'name': 'Vitamin AD3E Injectable',
+                    'type': 'Immune Support',
+                    'dosage': '5ml intramuscularly every 3 days',
+                    'image': 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=300&h=200&fit=crop'
+                }
+            ]
+        },
+        'Mastitis': {  
+            'description': 'Inflammatory condition of the mammary gland, often caused by bacterial infection',
+            'treatment': 'Antibiotic therapy and supportive care to restore milk production',
+            'medicines': [
+                {
+                    'name': 'Intramammary Antibiotic',
+                    'type': 'Targeted Antibiotic Treatment',
+                    'dosage': 'Insert one tube per affected quarter',
+                    'image': 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?w=300&h=200&fit=crop'
+                },
+                {
+                    'name': 'Systemic Penicillin',
+                    'type': 'Injectable Antibiotic',
+                    'dosage': '22,000 units per kg twice daily',
+                    'image': 'https://images.unsplash.com/photo-1584362917165-526a968579e8?w=300&h=200&fit=crop'
+                },
+                {
+                    'name': 'Anti-inflammatory',
+                    'type': 'Pain and Inflammation Control',
+                    'dosage': '2.2mg per kg once daily',
+                    'image': 'https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=300&h=200&fit=crop'
+                },
+                {
+                    'name': 'Teat Dip Solution',
+                    'type': 'Prevention and Hygiene',
+                    'dosage': 'After each milking',
+                    'image': 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=300&h=200&fit=crop'
+                }
+            ]
+        },
+        'Bovine Respiratory Disease': {
+            'description': 'Complex respiratory condition involving multiple pathogens',
+            'treatment': 'Broad spectrum antibiotics and supportive respiratory care',
+            'medicines': [
+                {
+                    'name': 'Florfenicol Injectable',
+                    'type': 'Respiratory Antibiotic',
+                    'dosage': '20mg per kg intramuscularly',
+                    'image': 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?w=300&h=200&fit=crop'
+                },
+                {
+                    'name': 'Meloxicam',
+                    'type': 'Anti-inflammatory',
+                    'dosage': '0.5mg per kg once daily',
+                    'image': 'https://images.unsplash.com/photo-1584362917165-526a968579e8?w=300&h=200&fit=crop'
+                },
+                {
+                    'name': 'Bronchodilator',
+                    'type': 'Respiratory Support',
+                    'dosage': 'As prescribed by veterinarian',
+                    'image': 'https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=300&h=200&fit=crop'
+                },
+                {
+                    'name': 'Electrolyte Solution',
+                    'type': 'Hydration Support',
+                    'dosage': '2-4 liters orally twice daily',
+                    'image': 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=300&h=200&fit=crop'
+                }
+            ]
+        }
+    },
+    'dog': {
+        'Skin Disease': {
+            'description': 'Various skin conditions affecting dogs including allergies and infections',
+            'treatment': 'Targeted therapy based on underlying cause and symptom management',
+            'medicines': [
+                {
+                    'name': 'Malaseb Shampoo (Chlorhexidine + Miconazole)',
+                    'type': 'Antifungal/Antibacterial Shampoo',
+                    'dosage': 'Bathe twice weekly, leave on for 10 minutes',
+                    'image': 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=300&h=200&fit=crop'
+                },
+                {
+                    'name': 'Cephalexin (Keflex)',
+                    'type': 'First-generation Cephalosporin Antibiotic',
+                    'dosage': '22mg per kg twice daily for 14 days',
+                    'image': 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?w=300&h=200&fit=crop'
+                },
+                {
+                    'name': 'Apoquel (Oclacitinib)',
+                    'type': 'JAK Inhibitor Anti-itch',
+                    'dosage': '0.4-0.6mg per kg twice daily',
+                    'image': 'https://images.unsplash.com/photo-1584362917165-526a968579e8?w=300&h=200&fit=crop'
+                },
+                {
+                    'name': 'Dermacton Spray (Silver Sulfadiazine)',
+                    'type': 'Topical Antimicrobial',
+                    'dosage': 'Spray on affected areas twice daily',
+                    'image': 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=300&h=200&fit=crop'
+                }
+            ]
+        },
+        'Eye Disease': {
+            'description': 'Ocular conditions including conjunctivitis and corneal issues',
+            'treatment': 'Ophthalmologic care and infection prevention',
+            'medicines': [
+                {
+                    'name': 'Tobramycin Ophthalmic Solution (Tobrex)',
+                    'type': 'Antibiotic Eye Drops',
+                    'dosage': '1-2 drops every 4-6 hours for 7-10 days',
+                    'image': 'https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=300&h=200&fit=crop'
+                },
+                {
+                    'name': 'GenTeal Lubricant Eye Drops',
+                    'type': 'Artificial Tears/Lubricant',
+                    'dosage': '2-3 drops 3-4 times daily as needed',
+                    'image': 'https://images.unsplash.com/photo-1584362917165-526a968579e8?w=300&h=200&fit=crop'
+                },
+                {
+                    'name': 'Maxitrol (Neomycin+Polymyxin+Dexamethasone)',
+                    'type': 'Antibiotic/Steroid Eye Ointment',
+                    'dosage': 'Apply small amount twice daily',
+                    'image': 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?w=300&h=200&fit=crop'
+                },
+                {
+                    'name': 'Sterile Saline Eye Wash',
+                    'type': 'Eye Irrigation Solution',
+                    'dosage': 'Flush eyes gently before medication',
+                    'image': 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=300&h=200&fit=crop'
+                }
+            ]
+        },
+        'Parvovirus': {
+            'description': 'Highly contagious viral infection affecting the digestive system',
+            'treatment': 'Intensive supportive care and fluid therapy to prevent dehydration',
+            'medicines': [
+                {
+                    'name': 'Subcutaneous Fluids',
+                    'type': 'Hydration Therapy',
+                    'dosage': 'As prescribed by veterinarian',
+                    'image': 'https://images.unsplash.com/photo-1584362917165-526a968579e8?w=300&h=200&fit=crop'
+                },
+                {
+                    'name': 'Anti-nausea Medication',
+                    'type': 'Antiemetic',
+                    'dosage': 'As prescribed for symptom control',
+                    'image': 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?w=300&h=200&fit=crop'
+                },
+                {
+                    'name': 'Probiotics',
+                    'type': 'Digestive Support',
+                    'dosage': 'Daily during recovery',
+                    'image': 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=300&h=200&fit=crop'
+                },
+                {
+                    'name': 'Electrolyte Supplements',
+                    'type': 'Nutritional Support',
+                    'dosage': 'As directed by veterinarian',
+                    'image': 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=300&h=200&fit=crop'
+                }
+            ]
+        },
+        'Kennel Cough': {
+            'description': 'Infectious respiratory condition causing persistent cough',
+            'treatment': 'Rest, cough suppressants, and antibiotics if bacterial component present',
+            'medicines': [
+                {
+                    'name': 'Dextromethorphan',
+                    'type': 'Cough Suppressant',
+                    'dosage': '1-2mg per kg twice daily',
+                    'image': 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?w=300&h=200&fit=crop'
+                },
+                {
+                    'name': 'Azithromycin',
+                    'type': 'Antibiotic',
+                    'dosage': '10mg per kg once daily',
+                    'image': 'https://images.unsplash.com/photo-1584362917165-526a968579e8?w=300&h=200&fit=crop'
+                },
+                {
+                    'name': 'Honey (Raw)',
+                    'type': 'Natural Cough Soother',
+                    'dosage': '1 teaspoon for small dogs, 2 for large dogs',
+                    'image': 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=300&h=200&fit=crop'
+                },
+                {
+                    'name': 'Humidifier Therapy',
+                    'type': 'Environmental Treatment',
+                    'dosage': 'Use in living area continuously',
+                    'image': 'https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=300&h=200&fit=crop'
+                }
+            ]
+        },
+        'Healthy': {
+            'description': 'Your dog appears to be in excellent health',
+            'treatment': 'Maintain regular preventive care and health monitoring',
+            'medicines': [
+                {
+                    'name': 'Multivitamin for Dogs',
+                    'type': 'Nutritional Supplement',
+                    'dosage': 'One tablet daily with food',
+                    'image': 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=300&h=200&fit=crop'
+                },
+                {
+                    'name': 'Joint Support Supplement',
+                    'type': 'Glucosamine & Chondroitin',
+                    'dosage': 'As per weight guidelines',
+                    'image': 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=300&h=200&fit=crop'
+                },
+                {
+                    'name': 'Dental Chews',
+                    'type': 'Oral Health Maintenance',
+                    'dosage': 'One chew daily',
+                    'image': 'https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=300&h=200&fit=crop'
+                },
+                {
+                    'name': 'Flea & Tick Prevention',
+                    'type': 'Parasitic Prevention',
+                    'dosage': 'Monthly application',
+                    'image': 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?w=300&h=200&fit=crop'
+                }
+            ]
+        },
+        'Ear Infection': {
+            'description': 'Bacterial or yeast infection of the ear canal causing discomfort',
+            'treatment': 'Topical antimicrobial therapy and ear cleaning',
+            'medicines': [
+                {
+                    'name': 'Otomax Ointment (Gentamicin+Betamethasone+Clotrimazole)',
+                    'type': 'Triple-action Ear Medication',
+                    'dosage': 'Apply to ear canal twice daily for 7 days',
+                    'image': 'https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=300&h=200&fit=crop'
+                },
+                {
+                    'name': 'Epi-Otic Advanced Ear Cleanser',
+                    'type': 'Ear Cleaning Solution',
+                    'dosage': 'Clean ears before medication application',
+                    'image': 'https://images.unsplash.com/photo-1584362917165-526a968579e8?w=300&h=200&fit=crop'
+                },
+                {
+                    'name': 'Surolan Ear Drops',
+                    'type': 'Antimicrobial Ear Treatment',
+                    'dosage': '5-10 drops twice daily for 7-14 days',
+                    'image': 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?w=300&h=200&fit=crop'
+                },
+                {
+                    'name': 'Tris-EDTA + Ketoconazole',
+                    'type': 'Antifungal Ear Solution',
+                    'dosage': 'Apply as directed for yeast infections',
+                    'image': 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=300&h=200&fit=crop'
+                }
+            ]
+        },
+        'Hip Dysplasia': {
+            'description': 'Genetic condition causing improper formation of hip joints',
+            'treatment': 'Pain management and joint support therapy',
+            'medicines': [
+                {
+                    'name': 'Carprofen (Rimadyl)',
+                    'type': 'NSAID Anti-inflammatory',
+                    'dosage': '2-4mg per kg twice daily with food',
+                    'image': 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?w=300&h=200&fit=crop'
+                },
+                {
+                    'name': 'Glucosamine + Chondroitin (Cosequin)',
+                    'type': 'Joint Support Supplement',
+                    'dosage': 'As per weight chart on package',
+                    'image': 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=300&h=200&fit=crop'
+                },
+                {
+                    'name': 'Adequan Injectable (Polysulfated Glycosaminoglycan)',
+                    'type': 'Disease-modifying Osteoarthritis Drug',
+                    'dosage': '2mg per kg intramuscularly twice weekly',
+                    'image': 'https://images.unsplash.com/photo-1584362917165-526a968579e8?w=300&h=200&fit=crop'
+                },
+                {
+                    'name': 'Gabapentin',
+                    'type': 'Neuropathic Pain Medication',
+                    'dosage': '10-20mg per kg twice daily',
+                    'image': 'https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=300&h=200&fit=crop'
+                }
+            ]
+        }
+    }
+}
+
+def get_treatment_suggestions(animal_type, disease):
+    """Get treatment suggestions for a specific animal and disease"""
+    try:
+        if animal_type in TREATMENT_DATABASE and disease in TREATMENT_DATABASE[animal_type]:
+            return TREATMENT_DATABASE[animal_type][disease]
+        else:
+            # Default treatment suggestions if specific disease not found
+            return {
+                'description': f'Treatment recommendations for {disease} in {animal_type}',
+                'treatment': 'Consult with a veterinarian for proper diagnosis and treatment plan',
+                'medicines': [
+                    {
+                        'name': 'General Antibiotic',
+                        'type': 'Broad Spectrum',
+                        'dosage': 'As prescribed by veterinarian',
+                        'image': 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?w=300&h=200&fit=crop'
+                    },
+                    {
+                        'name': 'Pain Relief Medication',
+                        'type': 'Anti-inflammatory',
+                        'dosage': 'As prescribed by veterinarian',
+                        'image': 'https://images.unsplash.com/photo-1584362917165-526a968579e8?w=300&h=200&fit=crop'
+                    },
+                    {
+                        'name': 'Wound Care Antiseptic',
+                        'type': 'Topical Treatment',
+                        'dosage': 'Apply as directed',
+                        'image': 'https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=300&h=200&fit=crop'
+                    },
+                    {
+                        'name': 'Vitamin Supplement',
+                        'type': 'Immune Support',
+                        'dosage': 'Daily as recommended',
+                        'image': 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=300&h=200&fit=crop'
+                    }
+                ]
+            }
+    except Exception as e:
+        print(f"Error getting treatment suggestions: {e}")
+        return None
 
 def allowed_file(filename):
     return '.' in filename and \
@@ -1202,13 +1823,17 @@ def mock_disease_prediction(animal_type, symptoms, age, weight, temperature, add
     if top_disease in contagious_diseases:
         recommendations.insert(1, "Isolate the animal to prevent disease spread")
     
+    # Get treatment suggestions
+    treatment_info = get_treatment_suggestions(animal_type, top_disease)
+    
     return {
         'disease': top_disease,
         'confidence': round(confidence, 1),
         'symptoms_analyzed': symptoms,
         'recommendations': recommendations,
         'severity': 'High' if confidence > 80 else 'Medium' if confidence > 60 else 'Low',
-        'animal_type': animal_type
+        'animal_type': animal_type,
+        'treatment': treatment_info
     }
 
 @app.route('/about')
@@ -1292,7 +1917,7 @@ def predict_cat():
                     'confidence': predictions[0]['confidence'] if predictions else 0.0
                 })
             
-            # If no predictions, add a default
+            
             if not predictions:
                 return jsonify({
                     'success': False,
@@ -1321,10 +1946,15 @@ def predict_cat():
                 except Exception as db_error:
                     print(f"Database error: {db_error}")
             
+            # Get treatment suggestions for the top prediction
+            top_prediction = predictions[0] if predictions else {'class': 'Unknown', 'confidence': 0.0}
+            treatment_info = get_treatment_suggestions('cat', top_prediction['class'])
+            
             return jsonify({
                 'success': True,
                 'predictions': predictions,
-                'model_info': 'YOLOv8 Cat Disease Detection Model'
+                'model_info': 'YOLOv8 Cat Disease Detection Model',
+                'treatment': treatment_info
             })
         
         else:
@@ -1427,10 +2057,15 @@ def predict_cow():
                 except Exception as db_error:
                     print(f"Database error: {db_error}")
             
+            # Get treatment suggestions for the top prediction
+            top_prediction = predictions[0] if predictions else {'class': 'Unknown', 'confidence': 0.0}
+            treatment_info = get_treatment_suggestions('cow', top_prediction['class'])
+            
             return jsonify({
                 'success': True,
                 'predictions': predictions,
-                'model_info': 'YOLOv8 Cow Disease Detection Model'
+                'model_info': 'YOLOv8 Cow Disease Detection Model',
+                'treatment': treatment_info
             })
         
         else:
@@ -1546,10 +2181,15 @@ def predict_dog():
                 except Exception as db_error:
                     print(f"Database error: {db_error}")
             
+            # Get treatment suggestions for the top prediction
+            top_prediction = predictions[0] if predictions else {'class': 'Unknown', 'confidence': 0.0}
+            treatment_info = get_treatment_suggestions('dog', top_prediction['class'])
+            
             return jsonify({
                 'success': True,
                 'predictions': predictions,
-                'model_info': 'YOLOv8 Dog Disease Detection Model'
+                'model_info': 'YOLOv8 Dog Disease Detection Model',
+                'treatment': treatment_info
             })
         
         else:
