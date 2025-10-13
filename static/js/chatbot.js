@@ -1208,25 +1208,9 @@ class VeterinaryChatbot {
                 console.warn('⚠️ File input element not found');
             }
 
+            // Upload area is no longer used for interaction - kept for potential future drag/drop
             if (uploadArea) {
-                // Drag and drop
-                uploadArea.addEventListener('dragover', (e) => {
-                    e.preventDefault();
-                    uploadArea.classList.add('dragover');
-                });
-
-                uploadArea.addEventListener('dragleave', () => {
-                    uploadArea.classList.remove('dragover');
-                });
-
-                uploadArea.addEventListener('drop', (e) => {
-                    e.preventDefault();
-                    uploadArea.classList.remove('dragover');
-                    this.handleFileSelect(e.dataTransfer.files);
-                });
-
-                uploadArea.addEventListener('click', () => this.triggerFileUpload());
-                console.log('✅ Upload area event listeners added');
+                console.log('✅ Upload area element found (not used for click interaction)');
             } else {
                 console.warn('⚠️ Upload area element not found');
             }
@@ -1236,13 +1220,8 @@ class VeterinaryChatbot {
     }
 
     triggerFileUpload() {
-        const uploadArea = document.getElementById('fileUploadArea');
-        
-        if (uploadArea.style.display === 'none' || !uploadArea.style.display) {
-            uploadArea.style.display = 'block';
-        } else {
-            document.getElementById('fileInput').click();
-        }
+        // Directly open file picker without showing the drop area
+        document.getElementById('fileInput').click();
     }
 
     async handleFileSelect(files) {
