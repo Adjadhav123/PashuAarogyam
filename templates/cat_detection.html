@@ -133,6 +133,225 @@
         </div>
     </section>
 
+    <!-- Error Popup Modal -->
+    <div class="error-popup-overlay" id="errorPopupOverlay">
+        <div class="error-popup">
+            <div class="error-popup-header">
+                <h3 id="errorPopupTitle">⚠️ Detection Error</h3>
+                <button class="popup-close-btn" onclick="closeErrorPopup()">&times;</button>
+            </div>
+            <div class="error-popup-body">
+                <div class="error-icon">
+                    <div id="errorIcon">🚫</div>
+                </div>
+                <div class="error-message">
+                    <p id="errorMessage">Error message will appear here</p>
+                    <div class="error-details">
+                        <p id="errorDetails">Detailed error information</p>
+                    </div>
+                    <div class="confidence-info" id="confidenceInfo" style="display: none;">
+                        <p><strong>Detection Confidence:</strong> <span id="confidenceValue">0%</span></p>
+                    </div>
+                </div>
+            </div>
+            <div class="error-popup-footer">
+                <button class="btn btn-primary" onclick="closeErrorPopup()">Try Again</button>
+                <button class="btn btn-secondary" onclick="goBackToSelection()">Choose Different Animal</button>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        /* Error Popup Styles */
+        .error-popup-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .error-popup-overlay.show {
+            display: flex;
+        }
+
+        .error-popup {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            animation: slideIn 0.4s ease-out;
+            position: relative;
+        }
+
+        .error-popup-header {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+            color: white;
+            padding: 20px;
+            border-radius: 15px 15px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .error-popup-header h3 {
+            margin: 0;
+            font-size: 1.4em;
+            font-weight: 600;
+        }
+
+        .popup-close-btn {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.8em;
+            cursor: pointer;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.2s ease;
+        }
+
+        .popup-close-btn:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .error-popup-body {
+            padding: 30px;
+            text-align: center;
+        }
+
+        .error-icon {
+            margin-bottom: 20px;
+        }
+
+        .error-icon div {
+            font-size: 4em;
+            margin-bottom: 10px;
+        }
+
+        .error-message p {
+            font-size: 1.2em;
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        .error-details {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border-left: 4px solid #ff6b6b;
+        }
+
+        .error-details p {
+            margin: 0;
+            color: #495057;
+            font-size: 1em;
+            line-height: 1.5;
+            font-weight: normal;
+        }
+
+        .confidence-info {
+            background: #e3f2fd;
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 15px;
+            border-left: 4px solid #2196f3;
+        }
+
+        .confidence-info p {
+            margin: 0;
+            font-size: 0.9em;
+            color: #1565c0;
+        }
+
+        .error-popup-footer {
+            padding: 20px 30px 30px;
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .error-popup-footer .btn {
+            padding: 12px 24px;
+            border-radius: 8px;
+            border: none;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            min-width: 120px;
+        }
+
+        .error-popup-footer .btn-primary {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+        }
+
+        .error-popup-footer .btn-primary:hover {
+            background: linear-gradient(135deg, #218838, #1dc690);
+            transform: translateY(-2px);
+        }
+
+        .error-popup-footer .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .error-popup-footer .btn-secondary:hover {
+            background: #5a6268;
+            transform: translateY(-2px);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-50px) scale(0.9);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .error-popup {
+                width: 95%;
+                margin: 20px;
+            }
+            
+            .error-popup-footer {
+                flex-direction: column;
+            }
+            
+            .error-popup-footer .btn {
+                width: 100%;
+            }
+        }
+    </style>
+
     <script>
         let currentImageFile = null;
         let video = null;
@@ -314,7 +533,11 @@
                 if (result.success) {
                     displayResults(result);
                 } else {
-                    alert('Error analyzing image: ' + result.error);
+                    if (result.show_popup || result.validation_failed) {
+                        showErrorPopup(result);
+                    } else {
+                        alert('Error analyzing image: ' + result.error);
+                    }
                 }
             } catch (error) {
                 document.getElementById('loadingSpinner').classList.remove('show');
@@ -331,9 +554,20 @@
 
             // Display main result
             const mainPrediction = result.predictions[0];
-            resultSummary.innerHTML = `
+            let summaryHTML = `
                 <h4>Detected: <span style="color: ${mainPrediction.class === 'Healthy' ? '#28a745' : '#dc3545'}">${mainPrediction.class}</span></h4>
             `;
+            
+            // Add quality warning if present
+            if (mainPrediction.quality_warning) {
+                summaryHTML += `
+                    <div style="background: #fff3cd; color: #856404; padding: 10px; border-radius: 5px; margin-top: 10px; border-left: 4px solid #ffc107;">
+                        <small><strong>⚠️ Note:</strong> Image quality is moderate. For more accurate results, consider uploading a clearer image.</small>
+                    </div>
+                `;
+            }
+            
+            resultSummary.innerHTML = summaryHTML;
 
             // Update confidence bar
             const confidence = Math.round(mainPrediction.confidence * 100);
@@ -410,6 +644,74 @@
             // Scroll to results
             resultsSection.scrollIntoView({ behavior: 'smooth' });
         }
+
+        // Error popup functions
+        function showErrorPopup(result) {
+            const overlay = document.getElementById('errorPopupOverlay');
+            const title = document.getElementById('errorPopupTitle');
+            const message = document.getElementById('errorMessage');
+            const details = document.getElementById('errorDetails');
+            const confidenceInfo = document.getElementById('confidenceInfo');
+            const confidenceValue = document.getElementById('confidenceValue');
+            const errorIcon = document.getElementById('errorIcon');
+
+            // Set popup content based on error type
+            title.textContent = result.error || '⚠️ Detection Error';
+            message.textContent = result.error || 'An error occurred during analysis';
+            
+            if (result.detailed_message) {
+                details.textContent = result.detailed_message;
+            }
+
+            // Show confidence if available
+            if (result.confidence !== undefined) {
+                confidenceInfo.style.display = 'block';
+                confidenceValue.textContent = Math.round(result.confidence * 100) + '%';
+            } else {
+                confidenceInfo.style.display = 'none';
+            }
+
+            // Set appropriate icon based on error type
+            if (result.validation_failed) {
+                if (result.animal_expected === 'cat') {
+                    if (result.error.includes('Wrong Animal')) {
+                        errorIcon.textContent = '🐱';
+                    } else if (result.error.includes('Quality')) {
+                        errorIcon.textContent = '📸';
+                    } else {
+                        errorIcon.textContent = '🚫';
+                    }
+                }
+            }
+
+            // Show the popup
+            overlay.classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeErrorPopup() {
+            const overlay = document.getElementById('errorPopupOverlay');
+            overlay.classList.remove('show');
+            document.body.style.overflow = 'auto';
+        }
+
+        function goBackToSelection() {
+            window.location.href = "{{ url_for('disease_detection') }}";
+        }
+
+        // Close popup when clicking outside
+        document.getElementById('errorPopupOverlay').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeErrorPopup();
+            }
+        });
+
+        // Close popup with Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeErrorPopup();
+            }
+        });
 
         // Cleanup camera on page unload
         window.addEventListener('beforeunload', function() {

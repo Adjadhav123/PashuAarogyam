@@ -1868,21 +1868,24 @@ def predict_cat():
         if 'cat' not in models:
             return jsonify({
                 'success': False,
-                'error': 'Cat disease detection model is not available'
+                'error': 'Cat disease detection model is not available',
+                'show_popup': True
             })
 
         # Check if image is provided
         if 'image' not in request.files:
             return jsonify({
                 'success': False,
-                'error': 'No image file provided'
+                'error': 'No image file provided',
+                'show_popup': True
             })
 
         file = request.files['image']
         if file.filename == '':
             return jsonify({
                 'success': False,
-                'error': 'No image file selected'
+                'error': 'No image file selected',
+                'show_popup': True
             })
 
         if file and allowed_file(file.filename):
@@ -1896,34 +1899,62 @@ def predict_cat():
             # Process results
             predictions = []
             for result in results:
-                for box in result.boxes:
-                    class_id = int(box.cls[0])
-                    confidence = float(box.conf[0])
-                    class_name = result.names[class_id]
-                    
-                    predictions.append({
-                        'class': class_name,
-                        'confidence': confidence
-                    })
+                if result.boxes is not None and len(result.boxes) > 0:
+                    for box in result.boxes:
+                        class_id = int(box.cls[0])
+                        confidence = float(box.conf[0])
+                        class_name = result.names[class_id]
+                        
+                        predictions.append({
+                            'class': class_name,
+                            'confidence': confidence
+                        })
             
             # Sort by confidence
             predictions.sort(key=lambda x: x['confidence'], reverse=True)
             
-            # Check if highest confidence is below 60%
-            if predictions and predictions[0]['confidence'] < 0.6:
-                return jsonify({
-                    'success': False,
-                    'error': 'Image quality is too low or does not contain a proper cat image. Please upload a clearer image of a cat.',
-                    'confidence': predictions[0]['confidence'] if predictions else 0.0
-                })
-            
-            
+            # Enhanced animal validation with specific error messages
             if not predictions:
                 return jsonify({
                     'success': False,
-                    'error': 'No cat detected in the image. Please upload a clear image of a cat.',
+                    'error': '🚫 No Cat Detected!',
+                    'detailed_message': 'The uploaded image does not contain a recognizable cat. Please upload a clear image of a cat for disease detection.',
+                    'validation_failed': True,
+                    'animal_expected': 'cat',
+                    'show_popup': True,
                     'confidence': 0.0
                 })
+            
+            max_confidence = predictions[0]['confidence']
+            
+            # If highest confidence is below 25%, likely not a cat image at all
+            if max_confidence < 0.25:
+                return jsonify({
+                    'success': False,
+                    'error': '🐱 Wrong Animal Detected!',
+                    'detailed_message': 'This image does not appear to contain a cat. Our AI model is specifically trained for cat disease detection. Please upload a clear image of a cat to get accurate results.',
+                    'validation_failed': True,
+                    'animal_expected': 'cat',
+                    'show_popup': True,
+                    'confidence': max_confidence
+                })
+            
+            # If confidence is between 25-50%, might be a cat but very unclear
+            elif max_confidence < 0.50:
+                return jsonify({
+                    'success': False,
+                    'error': '📸 Image Quality Too Low!',
+                    'detailed_message': 'The image quality is too low for reliable cat disease detection. Please upload a clearer, well-lit image of the cat. Make sure the cat is clearly visible and the photo is not blurry.',
+                    'validation_failed': True,
+                    'animal_expected': 'cat',
+                    'show_popup': True,
+                    'confidence': max_confidence
+                })
+            
+            # If confidence is between 50-65%, proceed but warn about lower accuracy
+            elif max_confidence < 0.65:
+                # Add a warning but still proceed with analysis
+                predictions[0]['quality_warning'] = True
             
             # Store prediction in database if available
             if predictions_collection is not None:
@@ -1960,7 +1991,8 @@ def predict_cat():
         else:
             return jsonify({
                 'success': False,
-                'error': 'Invalid file format. Supported formats: PNG, JPG, JPEG, WebP'
+                'error': 'Invalid file format. Supported formats: PNG, JPG, JPEG, WebP',
+                'show_popup': True
             })
             
     except Exception as e:
@@ -1968,7 +2000,8 @@ def predict_cat():
         print(f"Error traceback: {traceback.format_exc()}")
         return jsonify({
             'success': False,
-            'error': f'Prediction failed: {str(e)}'
+            'error': f'Prediction failed: {str(e)}',
+            'show_popup': True
         })
 
 @app.route('/predict/cow', methods=['POST'])
@@ -1979,21 +2012,24 @@ def predict_cow():
         if 'cow' not in models:
             return jsonify({
                 'success': False,
-                'error': 'Cow disease detection model is not available'
+                'error': 'Cow disease detection model is not available',
+                'show_popup': True
             })
 
         # Check if image is provided
         if 'image' not in request.files:
             return jsonify({
                 'success': False,
-                'error': 'No image file provided'
+                'error': 'No image file provided',
+                'show_popup': True
             })
 
         file = request.files['image']
         if file.filename == '':
             return jsonify({
                 'success': False,
-                'error': 'No image file selected'
+                'error': 'No image file selected',
+                'show_popup': True
             })
 
         if file and allowed_file(file.filename):
@@ -2007,34 +2043,62 @@ def predict_cow():
             # Process results
             predictions = []
             for result in results:
-                for box in result.boxes:
-                    class_id = int(box.cls[0])
-                    confidence = float(box.conf[0])
-                    class_name = result.names[class_id]
-                    
-                    predictions.append({
-                        'class': class_name,
-                        'confidence': confidence
-                    })
+                if result.boxes is not None and len(result.boxes) > 0:
+                    for box in result.boxes:
+                        class_id = int(box.cls[0])
+                        confidence = float(box.conf[0])
+                        class_name = result.names[class_id]
+                        
+                        predictions.append({
+                            'class': class_name,
+                            'confidence': confidence
+                        })
             
             # Sort by confidence
             predictions.sort(key=lambda x: x['confidence'], reverse=True)
             
-            # Check if highest confidence is below 60%
-            if predictions and predictions[0]['confidence'] < 0.6:
-                return jsonify({
-                    'success': False,
-                    'error': 'Image quality is too low or does not contain a proper cow image. Please upload a clearer image of a cow.',
-                    'confidence': predictions[0]['confidence'] if predictions else 0.0
-                })
-            
-            # If no predictions, add a default
+            # Enhanced animal validation with specific error messages
             if not predictions:
                 return jsonify({
                     'success': False,
-                    'error': 'No cow detected in the image. Please upload a clear image of a cow.',
+                    'error': '🚫 No Cow/Cattle Detected!',
+                    'detailed_message': 'The uploaded image does not contain a recognizable cow or cattle. Please upload a clear image of a cow/cattle for disease detection.',
+                    'validation_failed': True,
+                    'animal_expected': 'cow',
+                    'show_popup': True,
                     'confidence': 0.0
                 })
+            
+            max_confidence = predictions[0]['confidence']
+            
+            # If highest confidence is below 25%, likely not a cow image at all
+            if max_confidence < 0.25:
+                return jsonify({
+                    'success': False,
+                    'error': '🐄 Wrong Animal Detected!',
+                    'detailed_message': 'This image does not appear to contain a cow or cattle. Our AI model is specifically trained for cow/cattle disease detection. Please upload a clear image of a cow/cattle to get accurate results.',
+                    'validation_failed': True,
+                    'animal_expected': 'cow',
+                    'show_popup': True,
+                    'confidence': max_confidence
+                })
+            
+            # If confidence is between 25-50%, might be a cow but very unclear
+            elif max_confidence < 0.50:
+                return jsonify({
+                    'success': False,
+                    'error': '📸 Image Quality Too Low!',
+                    'detailed_message': 'The image quality is too low for reliable cow/cattle disease detection. Please upload a clearer, well-lit image of the cow/cattle. Make sure the animal is clearly visible and the photo is not blurry.',
+                    'validation_failed': True,
+                    'animal_expected': 'cow',
+                    'show_popup': True,
+                    'confidence': max_confidence
+                })
+            
+            # If confidence is between 50-65%, proceed but warn about lower accuracy
+            elif max_confidence < 0.65:
+                # Add a warning but still proceed with analysis
+                predictions[0]['quality_warning'] = True
             
             # Store prediction in database if available
             if predictions_collection is not None:
@@ -2071,7 +2135,8 @@ def predict_cow():
         else:
             return jsonify({
                 'success': False,
-                'error': 'Invalid file format. Supported formats: PNG, JPG, JPEG, WebP'
+                'error': 'Invalid file format. Supported formats: PNG, JPG, JPEG, WebP',
+                'show_popup': True
             })
             
     except Exception as e:
@@ -2079,7 +2144,8 @@ def predict_cow():
         print(f"Error traceback: {traceback.format_exc()}")
         return jsonify({
             'success': False,
-            'error': f'Prediction failed: {str(e)}'
+            'error': f'Prediction failed: {str(e)}',
+            'show_popup': True
         })
 
 @app.route('/predict/dog', methods=['POST'])
@@ -2090,21 +2156,24 @@ def predict_dog():
         if 'dog' not in models:
             return jsonify({
                 'success': False,
-                'error': 'Dog disease detection model is not available'
+                'error': 'Dog disease detection model is not available',
+                'show_popup': True
             })
 
         # Check if image is provided
         if 'image' not in request.files:
             return jsonify({
                 'success': False,
-                'error': 'No image file provided'
+                'error': 'No image file provided',
+                'show_popup': True
             })
 
         file = request.files['image']
         if file.filename == '':
             return jsonify({
                 'success': False,
-                'error': 'No image file selected'
+                'error': 'No image file selected',
+                'show_popup': True
             })
 
         if file and allowed_file(file.filename):
@@ -2132,33 +2201,47 @@ def predict_dog():
             # Sort by confidence
             predictions.sort(key=lambda x: x['confidence'], reverse=True)
             
-            # Check if this looks like a dog image based on model response
-            # If no detections or very low confidence, likely not a dog image
+            # Enhanced animal validation with specific error messages
             if not predictions:
                 return jsonify({
                     'success': False,
-                    'error': 'The uploaded image does not appear to contain a dog. Please upload a clear image of a dog for disease detection.',
+                    'error': '🚫 No Dog Detected!',
+                    'detailed_message': 'The uploaded image does not contain a recognizable dog. Please upload a clear image of a dog for disease detection.',
                     'validation_failed': True,
+                    'animal_expected': 'dog',
+                    'show_popup': True,
                     'confidence': 0.0
                 })
             
-            # If highest confidence is below 30%, likely not a dog image
+            # If highest confidence is below 25%, likely not a dog image at all
             max_confidence = predictions[0]['confidence']
-            if max_confidence < 0.3:
+            if max_confidence < 0.25:
                 return jsonify({
                     'success': False,
-                    'error': 'The uploaded image does not appear to contain a dog or the image quality is too low. Please upload a clear image of a dog.',
+                    'error': '🐕 Wrong Animal Detected!',
+                    'detailed_message': 'This image does not appear to contain a dog. Our AI model is specifically trained for dog disease detection. Please upload a clear image of a dog to get accurate results.',
                     'validation_failed': True,
+                    'animal_expected': 'dog',
+                    'show_popup': True,
                     'confidence': max_confidence
                 })
             
-            # If highest confidence is between 30-60%, might be dog but low quality
-            if max_confidence < 0.6:
+            # If confidence is between 25-50%, might be a dog but very unclear
+            elif max_confidence < 0.50:
                 return jsonify({
                     'success': False,
-                    'error': 'Image quality appears to be low for reliable disease detection. Please upload a clearer image of the dog.',
+                    'error': '📸 Image Quality Too Low!',
+                    'detailed_message': 'The image quality is too low for reliable dog disease detection. Please upload a clearer, well-lit image of the dog. Make sure the dog is clearly visible and the photo is not blurry.',
+                    'validation_failed': True,
+                    'animal_expected': 'dog',
+                    'show_popup': True,
                     'confidence': max_confidence
                 })
+            
+            # If confidence is between 50-65%, proceed but warn about lower accuracy
+            elif max_confidence < 0.65:
+                # Add a warning but still proceed with analysis
+                predictions[0]['quality_warning'] = True
             
             # Store prediction in database if available
             if predictions_collection is not None:
@@ -2195,7 +2278,8 @@ def predict_dog():
         else:
             return jsonify({
                 'success': False,
-                'error': 'Invalid file format. Supported formats: PNG, JPG, JPEG, WebP'
+                'error': 'Invalid file format. Supported formats: PNG, JPG, JPEG, WebP',
+                'show_popup': True
             })
             
     except Exception as e:
@@ -2203,7 +2287,8 @@ def predict_dog():
         print(f"Error traceback: {traceback.format_exc()}")
         return jsonify({
             'success': False,
-            'error': f'Prediction failed: {str(e)}'
+            'error': f'Prediction failed: {str(e)}',
+            'show_popup': True
         })
 
 @app.route('/cow_detection')
