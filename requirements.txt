@@ -27,4 +27,5 @@ SpeechRecognition
 pyttsx3
 PyPDF2
 python-magic
+deep_translator
 gunicorn  

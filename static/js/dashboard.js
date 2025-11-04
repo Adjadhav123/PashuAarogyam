@@ -105,17 +105,8 @@ function handleFeatureAction(e) {
         case 'Veterinary Consultant':
             showAlert('Veterinary consultation booking will be available soon!', 'info');
             break;
-        case 'Health Monitoring':
-            showAlert('Health monitoring dashboard is under development!', 'info');
-            break;
         case 'AI Veterinary Assistant':
             showAlert('AI Assistant chat feature coming soon!', 'info');
-            break;
-        case 'Health Alerts':
-            showAlert('Health alerts setup will be available soon!', 'info');
-            break;
-        case 'Treatment Recommendations':
-            showAlert('Treatment recommendations feature is under development!', 'info');
             break;
         default:
             showAlert('This feature is coming soon!', 'info');
