@@ -46,7 +46,7 @@
                         <h2>🐾 AI Veterinary Assistant</h2>
                         <p class="status-indicator">
                             <span class="status-dot online"></span>
-                            Online - Ready to help with animal health
+                            <span id="sessionIndicator">Online - Ready to help with animal health</span>
                         </p>
                     </div>
                 </div>
@@ -64,12 +64,16 @@
                             <option value="ml">🇮🇳 മലയാളം</option>
                         </select>
                     </div>
+                    <!-- New Session Button -->
+                    <button id="newSessionBtn" class="control-btn" title="Start New Chat Session">
+                        <i class="fas fa-plus"></i>
+                    </button>
                     <!-- Settings Button -->
                     <button id="settingsBtn" class="control-btn" title="Settings">
                         <i class="fas fa-cog"></i>
                     </button>
                     <!-- Clear Chat Button -->
-                    <button id="clearChatBtn" class="control-btn" title="Clear Chat">
+                    <button id="clearChatBtn" class="control-btn" title="Clear Current Chat">
                         <i class="fas fa-trash"></i>
                     </button>
                 </div>

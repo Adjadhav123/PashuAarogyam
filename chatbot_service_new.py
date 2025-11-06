@@ -3,6 +3,7 @@ import logging
 import traceback
 import json
 import time
+import random
 from datetime import datetime
 
 # Configure logging
@@ -44,6 +45,52 @@ except ImportError as e:
     logger.error(f"❌ Translation not available: {e}")
     TRANSLATION_AVAILABLE = False
 
+# Rate limiting for Gemini API - Relaxed for dedicated chatbot API
+class GeminiRateLimiter:
+    def __init__(self):
+        self.last_call_time = 0
+        self.min_interval = 0.3  # Reduced for chatbot with dedicated API
+        self.rate_limit_until = 0  # Timestamp until when we're rate limited
+        self.consecutive_failures = 0
+        
+    def wait_if_needed(self):
+        """Wait if we need to respect rate limits"""
+        current_time = time.time()
+        
+        # Check if we're still in rate limit period
+        if current_time < self.rate_limit_until:
+            wait_time = self.rate_limit_until - current_time
+            logger.info(f"⏳ Rate limited. Waiting {wait_time:.1f} seconds...")
+            time.sleep(wait_time)
+            return True
+            
+        # Ensure minimum interval between calls
+        time_since_last = current_time - self.last_call_time
+        if time_since_last < self.min_interval:
+            wait_time = self.min_interval - time_since_last
+            time.sleep(wait_time)
+            
+        self.last_call_time = time.time()
+        return False
+        
+    def handle_rate_limit_error(self):
+        """Handle 429 rate limit error - Reduced wait time for chatbot"""
+        self.consecutive_failures += 1
+        base_wait = min(20, 1.3 ** self.consecutive_failures)  # Even more reduced
+        jitter = random.uniform(0.9, 1.1)  # Minimal jitter
+        wait_time = base_wait * jitter
+        
+        self.rate_limit_until = time.time() + wait_time
+        self.min_interval = min(2, self.min_interval * 1.1)  # Minimal increase
+        
+        logger.warning(f"⚠️ Rate limit hit. Backing off for {wait_time:.1f} seconds...")
+        return wait_time
+        
+    def reset_on_success(self):
+        """Reset failure count on successful call"""
+        self.consecutive_failures = 0
+        self.min_interval = max(0.3, self.min_interval * 0.97)  # Gradually reduce interval
+
 class AnimalDiseaseChatbot:
     def __init__(self, api_key):
         """Initialize the chatbot with comprehensive error handling"""
@@ -53,6 +100,9 @@ class AnimalDiseaseChatbot:
             self.model = None
             self.vision_model = None
             self.conversation_history = []
+            self.session_histories = {}  # Store multiple session histories
+            self.current_session_key = None
+            self.rate_limiter = GeminiRateLimiter()  # Add rate limiter
             
             # Initialize services step by step
             self._initialize_genai()
@@ -64,6 +114,68 @@ class AnimalDiseaseChatbot:
             logger.error(traceback.format_exc())
             # Don't raise exception, allow degraded functionality
     
+    def _call_gemini_with_retry(self, model, prompt, image=None, max_retries=2):
+        """
+        Call Gemini API with proper error handling, rate limiting, and retries
+        Reduced retries since we have dedicated chatbot API key
+        """
+        if not GENAI_AVAILABLE or not model:
+            return None, "Gemini AI is not available"
+            
+        for attempt in range(max_retries):
+            try:
+                # Wait if rate limited
+                was_rate_limited = self.rate_limiter.wait_if_needed()
+                
+                # Make request
+                if image:
+                    response = model.generate_content([prompt, image])
+                else:
+                    response = model.generate_content(prompt)
+                
+                if response and response.text:
+                    self.rate_limiter.reset_on_success()
+                    return response.text.strip(), None
+                else:
+                    return None, "Empty response from Gemini AI"
+                    
+            except Exception as e:
+                error_str = str(e).lower()
+                
+                # Handle different types of errors
+                if "429" in error_str or "resource exhausted" in error_str or "quota" in error_str:
+                    wait_time = self.rate_limiter.handle_rate_limit_error()
+                    
+                    if attempt < max_retries - 1:
+                        logger.info(f"🔄 Retrying after rate limit (attempt {attempt + 1}/{max_retries})...")
+                        time.sleep(wait_time)
+                        continue
+                    else:
+                        return None, f"Rate limit exceeded after {max_retries} attempts. Please try again later."
+                        
+                elif "network" in error_str or "connection" in error_str or "timeout" in error_str:
+                    if attempt < max_retries - 1:
+                        wait_time = (attempt + 1) * 2  # Linear backoff for network issues
+                        logger.info(f"🌐 Network error, retrying in {wait_time}s (attempt {attempt + 1}/{max_retries})...")
+                        time.sleep(wait_time)
+                        continue
+                    else:
+                        return None, f"Network error after {max_retries} attempts. Please check your connection."
+                        
+                elif "invalid" in error_str or "permission" in error_str:
+                    return None, f"API error: {str(e)}"
+                    
+                else:
+                    if attempt < max_retries - 1:
+                        wait_time = (attempt + 1) * 1.5
+                        logger.info(f"⚠️ Gemini error, retrying in {wait_time}s: {str(e)[:100]}...")
+                        time.sleep(wait_time)
+                        continue
+                    else:
+                        return None, f"Gemini API error: {str(e)}"
+        
+        return None, "Failed after all retry attempts"
+    
     def _initialize_genai(self):
         """Initialize Google Generative AI"""
         try:
@@ -71,7 +183,11 @@ class AnimalDiseaseChatbot:
                 logger.warning("⚠️  Google Generative AI not available")
                 return False
                 
-            genai.configure(api_key=self.api_key)
+            # Temporarily disable to avoid rate limits
+            logger.warning("⚠️  Gemini AI temporarily disabled to avoid rate limits")
+            return False
+                
+            # genai.configure(api_key=self.api_key)
             
             # Try to initialize text model with newer model
             try:
@@ -113,8 +229,8 @@ class AnimalDiseaseChatbot:
             logger.error(f"❌ Failed to configure Generative AI: {e}")
             return False
     
-    def process_text_query(self, user_input, language='en'):
-        """Process text-based queries about animal diseases - optimized for speed"""
+    def process_text_query(self, user_input, language='en', session_key=None):
+        """Process text-based queries about animal diseases with session context"""
         try:
             # Validate input
             if not user_input or not user_input.strip():
@@ -123,6 +239,16 @@ class AnimalDiseaseChatbot:
                     'error': 'Empty input provided',
                     'type': 'text'
                 }
+            
+            # Set current session key
+            if session_key:
+                self.current_session_key = session_key
+                # Load session history if exists
+                if session_key in self.session_histories:
+                    self.conversation_history = self.session_histories[session_key]
+                else:
+                    self.conversation_history = []
+                    self.session_histories[session_key] = self.conversation_history
             
             # Check if model is available
             if not self.model:
@@ -146,12 +272,26 @@ class AnimalDiseaseChatbot:
                     query_text = user_input
                     should_translate = False  # Don't translate response either
             
-            # Create concise, optimized veterinary prompt
-            veterinary_prompt = f"""You are a veterinary AI assistant. Answer this question: {query_text}
+            # Build context from conversation history
+            context = ""
+            if self.conversation_history:
+                # Include last few exchanges for context
+                recent_history = self.conversation_history[-6:]  # Last 3 exchanges (6 messages)
+                context_parts = []
+                for hist in recent_history:
+                    if 'user' in hist and 'assistant' in hist:
+                        context_parts.append(f"User: {hist['user']}")
+                        context_parts.append(f"Assistant: {hist['assistant']}")
+                
+                if context_parts:
+                    context = "\nPrevious conversation:\n" + "\n".join(context_parts) + "\n\nCurrent question:\n"
+            
+            # Create context-aware veterinary prompt
+            veterinary_prompt = f"""You are a veterinary AI assistant. {context}Answer this question: {query_text}
 
 Provide:
 - Accurate, practical advice
-- Key symptoms or treatments
+- Key symptoms or treatments  
 - When to see a vet
 - Prevention tips if relevant
 
@@ -160,57 +300,38 @@ Keep response focused and helpful."""
             try:
                 logger.info("🤖 Generating text response...")
                 
-                # Generate response with timeout
-                import threading
-                import time
+                # Use the robust API call function
+                response_text, error = self._call_gemini_with_retry(self.model, veterinary_prompt)
                 
-                result = {'response': None, 'error': None}
-                
-                def generate_with_timeout():
-                    try:
-                        response = self.model.generate_content(veterinary_prompt)
-                        if response and response.text:
-                            result['response'] = response.text.strip()
-                        else:
-                            result['error'] = 'No response generated'
-                    except Exception as e:
-                        result['error'] = str(e)
-                
-                # Run with 20 second timeout (reduced from unlimited)
-                generation_thread = threading.Thread(target=generate_with_timeout)
-                generation_thread.daemon = True
-                generation_thread.start()
-                generation_thread.join(timeout=20)
-                
-                if generation_thread.is_alive():
-                    logger.error("❌ Text generation timed out")
+                if error:
+                    logger.error(f"❌ Text generation failed: {error}")
                     return {
                         'success': False,
-                        'error': 'Response generation timed out. Please try again.',
+                        'error': error,
                         'fallback_response': self._get_fallback_response(user_input),
                         'type': 'text'
                     }
                 
-                if result['error']:
-                    logger.error(f"❌ Text generation failed: {result['error']}")
-                    return {
-                        'success': False,
-                        'error': f'Generation failed: {result["error"]}',
-                        'fallback_response': self._get_fallback_response(user_input),
-                        'type': 'text'
-                    }
-                
-                if result['response']:
-                    response_text = result['response']
-                    
+                if response_text:
                     # Store in conversation history
                     try:
-                        self.conversation_history.append({
+                        conversation_entry = {
                             'user': user_input,
                             'assistant': response_text,
                             'timestamp': datetime.now().isoformat(),
                             'language': language
-                        })
+                        }
+                        self.conversation_history.append(conversation_entry)
+                        
+                        # Update session history
+                        if self.current_session_key:
+                            self.session_histories[self.current_session_key] = self.conversation_history
+                            
+                        # Keep only last 20 exchanges to prevent memory issues
+                        if len(self.conversation_history) > 20:
+                            self.conversation_history = self.conversation_history[-20:]
+                            if self.current_session_key:
+                                self.session_histories[self.current_session_key] = self.conversation_history
                     except:
                         pass  # Don't fail if history storage fails
                     
@@ -223,9 +344,8 @@ Keep response focused and helpful."""
                                 # Create a shorter summary for translation
                                 summary_prompt = f"Summarize this veterinary advice in 2-3 concise sentences: {response_text[:1000]}"
                                 try:
-                                    summary_response = self.model.generate_content(summary_prompt)
-                                    if summary_response and summary_response.text:
-                                        summary_text = summary_response.text.strip()
+                                    summary_text, summary_error = self._call_gemini_with_retry(self.model, summary_prompt)
+                                    if summary_text and not summary_error:
                                         final_response = self._translate_text(summary_text, 'en', language)
                                         logger.info(f"✅ Provided translated summary for {language}")
                                     else:
@@ -243,7 +363,8 @@ Keep response focused and helpful."""
                     return {
                         'success': True,
                         'response': final_response,
-                        'type': 'text'
+                        'type': 'text',
+                        'session_key': self.current_session_key
                     }
                 else:
                     return {
@@ -365,48 +486,19 @@ Be specific but concise."""
             try:
                 logger.info("🤖 Generating image analysis...")
                 
-                # Set a timeout for the API call
-                import threading
-                import time
+                # Use the robust API call function
+                response_text, error = self._call_gemini_with_retry(self.vision_model, image_prompt, image)
                 
-                result = {'response': None, 'error': None}
-                
-                def analyze_with_timeout():
-                    try:
-                        response = self.vision_model.generate_content([image_prompt, image])
-                        if response and response.text:
-                            result['response'] = response.text.strip()
-                        else:
-                            result['error'] = 'No analysis generated'
-                    except Exception as e:
-                        result['error'] = str(e)
-                
-                # Run with 30 second timeout
-                analysis_thread = threading.Thread(target=analyze_with_timeout)
-                analysis_thread.daemon = True
-                analysis_thread.start()
-                analysis_thread.join(timeout=30)
-                
-                if analysis_thread.is_alive():
-                    logger.error("❌ Image analysis timed out")
+                if error:
+                    logger.error(f"❌ Vision analysis failed: {error}")
                     return {
                         'success': False,
-                        'error': 'Image analysis timed out. Please try again with a smaller image.',
-                        'type': 'image_analysis'
-                    }
-                
-                if result['error']:
-                    logger.error(f"❌ Vision analysis failed: {result['error']}")
-                    return {
-                        'success': False,
-                        'error': f'Analysis failed: {result["error"]}',
+                        'error': error,
                         'fallback_response': 'Unable to analyze the image. Please describe what you see in text.',
                         'type': 'image_analysis'
                     }
                 
-                if result['response']:
-                    response_text = result['response']
-                    
+                if response_text:
                     # Translate back to original language only if needed
                     final_response = response_text
                     if language != 'en' and TRANSLATION_AVAILABLE:
@@ -640,17 +732,58 @@ I'm currently unable to provide AI-powered responses, but here's some general gu
             {'code': 'de', 'name': 'German'}
         ]
     
-    def clear_conversation(self):
-        """Clear conversation history"""
-        self.conversation_history = []
-        logger.info("✅ Conversation history cleared")
+    def clear_conversation(self, session_key=None):
+        """Clear conversation history for a specific session or current session"""
+        if session_key:
+            if session_key in self.session_histories:
+                del self.session_histories[session_key]
+                logger.info(f"✅ Session {session_key} conversation history cleared")
+            if self.current_session_key == session_key:
+                self.conversation_history = []
+                self.current_session_key = None
+        else:
+            # Clear current session
+            if self.current_session_key and self.current_session_key in self.session_histories:
+                del self.session_histories[self.current_session_key]
+            self.conversation_history = []
+            self.current_session_key = None
+            logger.info("✅ Current conversation history cleared")
+        
         return {'success': True, 'message': 'Conversation cleared'}
     
-    def get_conversation_history(self):
-        """Get conversation history"""
+    def get_conversation_history(self, session_key=None):
+        """Get conversation history for a specific session or current session"""
+        if session_key:
+            history = self.session_histories.get(session_key, [])
+        else:
+            history = self.conversation_history
+            
         return {
             'success': True,
-            'history': self.conversation_history[-10:]  # Return last 10 exchanges
+            'history': history[-10:],  # Return last 10 exchanges
+            'session_key': session_key or self.current_session_key
+        }
+    
+    def load_session_history(self, session_key):
+        """Load conversation history for a specific session"""
+        if session_key in self.session_histories:
+            self.conversation_history = self.session_histories[session_key]
+            self.current_session_key = session_key
+            logger.info(f"✅ Loaded conversation history for session {session_key}")
+        else:
+            self.conversation_history = []
+            self.session_histories[session_key] = self.conversation_history
+            self.current_session_key = session_key
+            logger.info(f"✅ Created new conversation history for session {session_key}")
+        
+        return {'success': True, 'session_key': session_key}
+    
+    def get_all_sessions(self):
+        """Get all available session keys"""
+        return {
+            'success': True,
+            'sessions': list(self.session_histories.keys()),
+            'current_session': self.current_session_key
         }
     
     def health_check(self):

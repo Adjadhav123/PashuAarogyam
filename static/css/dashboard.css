@@ -1,5 +1,53 @@
 /* Dashboard Specific Styles - Simplified to match index.html */
 
+/* Enhanced AI Prediction Styles */
+.enhanced-ai-highlight {
+    background: linear-gradient(135deg, #f8fff8, #e8f8e8);
+    border: 3px solid #2ecc71;
+    border-radius: 15px;
+    transform: scale(1.02);
+    box-shadow: 0 10px 30px rgba(46, 204, 113, 0.2);
+}
+
+.enhanced-ai-highlight .feature-icon {
+    animation: pulse-brain 2s infinite;
+    background: linear-gradient(135deg, #2ecc71, #27ae60);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+@keyframes pulse-brain {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.feature-card.enhanced-ai:hover {
+    transform: translateY(-5px) scale(1.02);
+    box-shadow: 0 15px 40px rgba(46, 204, 113, 0.3);
+}
+
+/* Special Option Styling */
+.special-option {
+    position: relative;
+    overflow: hidden;
+}
+
+.special-option::before {
+    content: "🌟 FEATURED";
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background: #f39c12;
+    color: white;
+    padding: 5px 10px;
+    border-radius: 15px;
+    font-size: 12px;
+    font-weight: bold;
+    z-index: 1;
+}
+
 /* User Menu */
 .user-menu {
     position: relative;

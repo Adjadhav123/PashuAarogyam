@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Specific Disease Prediction - PashuAarogyam</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/disease-detection.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .prediction-form {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 30px;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        .form-section {
+            margin-bottom: 25px;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 10px;
+            background: #f9f9f9;
+        }
+        
+        .form-section h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 5px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #34495e;
+        }
+        
+        .form-control {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        
+        .form-control:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+        
+        .checkbox-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .checkbox-item:hover {
+            background-color: #e8f4f8;
+        }
+        
+        .checkbox-item input {
+            margin-right: 8px;
+        }
+        
+        .predict-btn {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 20px;
+            transition: all 0.3s ease;
+        }
+        
+        .predict-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.3);
+        }
+        
+        .result-container {
+            margin-top: 30px;
+            padding: 25px;
+            background: linear-gradient(135deg, #e8f8f5, #d5f4e6);
+            border-radius: 15px;
+            border-left: 5px solid #27ae60;
+            display: none;
+        }
+        
+        .disease-result {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+        }
+        
+        .confidence-bar {
+            width: 100%;
+            height: 20px;
+            background: #ecf0f1;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        
+        .confidence-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #e74c3c, #f39c12, #27ae60);
+            border-radius: 10px;
+            transition: width 1s ease;
+        }
+        
+        .treatment-section {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 15px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+        }
+        
+        .alert {
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+            border-left: 4px solid;
+        }
+        
+        .alert-warning {
+            background-color: #fff3cd;
+            border-color: #ffc107;
+            color: #856404;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            display: none;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-logo">
+                <a href="{{ url_for('dashboard') }}">
+                    <i class="fas fa-paw"></i>
+                    PashuAarogyam
+                </a>
+            </div>
+            <ul class="nav-menu">
+                <li class="nav-item">
+                    <a href="{{ url_for('dashboard') }}" class="nav-link">
+                        <i class="fas fa-home"></i>
+                        Dashboard
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ url_for('disease_detection') }}" class="nav-link">
+                        <i class="fas fa-stethoscope"></i>
+                        Disease Detection
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="prediction-form">
+            <div class="header-section">
+                <h1><i class="fas fa-diagnoses"></i> Specific Disease Prediction</h1>
+                <p>Provide detailed information about your animal to get a specific disease prediction</p>
+            </div>
+
+            <form id="specificPredictionForm">
+                <!-- Animal Information -->
+                <div class="form-section">
+                    <h3><i class="fas fa-paw"></i> Animal Information</h3>
+                    <div class="form-group">
+                        <label for="animalType">Animal Type *</label>
+                        <select class="form-control" id="animalType" name="animal_type" required>
+                            <option value="">Select Animal Type</option>
+                            <option value="cattle">Cattle/Cow</option>
+                            <option value="dog">Dog</option>
+                            <option value="cat">Cat</option>
+                            <option value="pig">Pig</option>
+                            <option value="goat">Goat</option>
+                            <option value="sheep">Sheep</option>
+                            <option value="horse">Horse</option>
+                            <option value="chicken">Chicken</option>
+                        </select>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label for="animalAge">Age</label>
+                                <input type="text" class="form-control" id="animalAge" name="animal_age" placeholder="e.g., 2 years, 6 months">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label for="animalWeight">Weight</label>
+                                <input type="text" class="form-control" id="animalWeight" name="animal_weight" placeholder="e.g., 50 kg, 25 lbs">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label for="animalBreed">Breed (if known)</label>
+                                <input type="text" class="form-control" id="animalBreed" name="animal_breed" placeholder="e.g., Holstein, Labrador">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Symptoms -->
+                <div class="form-section">
+                    <h3><i class="fas fa-thermometer-half"></i> Observed Symptoms</h3>
+                    <div class="checkbox-group" id="symptomsContainer">
+                        <!-- Symptoms will be populated based on animal type -->
+                    </div>
+                    
+                    <div class="form-group" style="margin-top: 20px;">
+                        <label for="additionalSymptoms">Additional Symptoms or Observations</label>
+                        <textarea class="form-control" id="additionalSymptoms" name="additional_symptoms" rows="3" placeholder="Describe any other symptoms, behaviors, or observations..."></textarea>
+                    </div>
+                </div>
+
+                <!-- Environmental and History -->
+                <div class="form-section">
+                    <h3><i class="fas fa-history"></i> History & Environment</h3>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="symptomDuration">How long have you noticed these symptoms?</label>
+                                <select class="form-control" id="symptomDuration" name="symptom_duration">
+                                    <option value="">Select duration</option>
+                                    <option value="less than 1 day">Less than 1 day</option>
+                                    <option value="1-2 days">1-2 days</option>
+                                    <option value="3-7 days">3-7 days</option>
+                                    <option value="1-2 weeks">1-2 weeks</option>
+                                    <option value="2-4 weeks">2-4 weeks</option>
+                                    <option value="more than 1 month">More than 1 month</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="severity">Symptom Severity</label>
+                                <select class="form-control" id="severity" name="severity">
+                                    <option value="mild">Mild</option>
+                                    <option value="moderate" selected>Moderate</option>
+                                    <option value="severe">Severe</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="recentChanges">Recent Changes (diet, environment, medication, etc.)</label>
+                        <textarea class="form-control" id="recentChanges" name="recent_changes" rows="2" placeholder="Any recent changes in diet, environment, medication, or routine..."></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="previousTreatment">Previous Treatment or Medication</label>
+                        <textarea class="form-control" id="previousTreatment" name="previous_treatment" rows="2" placeholder="Any medications given or treatments tried..."></textarea>
+                    </div>
+                </div>
+
+                <button type="submit" class="predict-btn">
+                    <i class="fas fa-search"></i> Get Specific Disease Prediction
+                </button>
+            </form>
+
+            <!-- Loading -->
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Analyzing symptoms and generating specific disease prediction...</p>
+            </div>
+
+            <!-- Results -->
+            <div class="result-container" id="resultContainer">
+                <!-- Results will be populated here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Animal-specific symptoms
+        const animalSymptoms = {
+            cattle: [
+                'Loss of appetite', 'Fever', 'Difficulty breathing', 'Coughing', 'Nasal discharge',
+                'Diarrhea', 'Constipation', 'Lameness', 'Swelling', 'Reduced milk production',
+                'Lethargy', 'Weight loss', 'Bloating', 'Excessive salivation', 'Skin lesions',
+                'Eye discharge', 'Drooling', 'Abnormal posture', 'Difficulty walking', 'Trembling'
+            ],
+            dog: [
+                'Vomiting', 'Diarrhea', 'Loss of appetite', 'Lethargy', 'Excessive drinking',
+                'Frequent urination', 'Difficulty breathing', 'Coughing', 'Limping',
+                'Scratching', 'Hair loss', 'Skin irritation', 'Eye discharge', 'Ear discharge',
+                'Bad breath', 'Swollen abdomen', 'Pale gums', 'Excessive panting', 'Seizures'
+            ],
+            cat: [
+                'Vomiting', 'Diarrhea', 'Loss of appetite', 'Lethargy', 'Excessive drinking',
+                'Frequent urination', 'Difficulty breathing', 'Coughing', 'Sneezing',
+                'Eye discharge', 'Nasal discharge', 'Scratching', 'Hair loss', 'Hiding behavior',
+                'Changes in litter box habits', 'Bad breath', 'Drooling', 'Weight loss'
+            ],
+            pig: [
+                'Loss of appetite', 'Fever', 'Coughing', 'Difficulty breathing', 'Diarrhea',
+                'Lameness', 'Skin lesions', 'Lethargy', 'Weight loss', 'Excessive drinking',
+                'Vomiting', 'Trembling', 'Abnormal behavior', 'Discharge from nose/eyes'
+            ],
+            goat: [
+                'Loss of appetite', 'Fever', 'Coughing', 'Difficulty breathing', 'Diarrhea',
+                'Lameness', 'Lethargy', 'Weight loss', 'Bloating', 'Nasal discharge',
+                'Abnormal behavior', 'Difficulty standing', 'Pale gums', 'Swelling'
+            ],
+            sheep: [
+                'Loss of appetite', 'Fever', 'Coughing', 'Difficulty breathing', 'Diarrhea',
+                'Lameness', 'Lethargy', 'Weight loss', 'Wool loss', 'Skin irritation',
+                'Abnormal behavior', 'Difficulty walking', 'Swelling', 'Pale gums'
+            ],
+            horse: [
+                'Loss of appetite', 'Colic', 'Lameness', 'Difficulty breathing', 'Coughing',
+                'Nasal discharge', 'Lethargy', 'Weight loss', 'Excessive sweating', 'Swelling',
+                'Abnormal behavior', 'Difficulty moving', 'Changes in manure', 'Fever'
+            ],
+            chicken: [
+                'Loss of appetite', 'Lethargy', 'Difficulty breathing', 'Coughing', 'Sneezing',
+                'Diarrhea', 'Reduced egg production', 'Abnormal behavior', 'Feather loss', 'Swelling',
+                'Eye/nasal discharge', 'Pale comb', 'Difficulty walking', 'Changes in vocalization'
+            ]
+        };
+
+        // Update symptoms based on animal type
+        document.getElementById('animalType').addEventListener('change', function() {
+            const animalType = this.value;
+            const container = document.getElementById('symptomsContainer');
+            
+            if (animalType && animalSymptoms[animalType]) {
+                const symptoms = animalSymptoms[animalType];
+                container.innerHTML = symptoms.map(symptom => `
+                    <label class="checkbox-item">
+                        <input type="checkbox" name="symptoms[]" value="${symptom}">
+                        <span>${symptom}</span>
+                    </label>
+                `).join('');
+            } else {
+                container.innerHTML = '<p>Please select an animal type to see available symptoms.</p>';
+            }
+        });
+
+        // Form submission
+        document.getElementById('specificPredictionForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            
+            // Get selected symptoms
+            const selectedSymptoms = Array.from(document.querySelectorAll('input[name="symptoms[]"]:checked'))
+                .map(cb => cb.value);
+            
+            // Add symptoms to form data
+            selectedSymptoms.forEach(symptom => {
+                formData.append('symptoms[]', symptom);
+            });
+            
+            // Show loading
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('resultContainer').style.display = 'none';
+            
+            try {
+                const response = await fetch('/predict/specific_disease', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayResults(data.prediction);
+                } else {
+                    alert('Error: ' + (data.error || 'Prediction failed'));
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Network error. Please try again.');
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        });
+
+        function displayResults(prediction) {
+            const container = document.getElementById('resultContainer');
+            const confidence = Math.round((prediction.confidence || 0.8) * 100);
+            
+            container.innerHTML = `
+                <h2><i class="fas fa-diagnoses"></i> Disease Prediction Result</h2>
+                
+                <div class="disease-result">
+                    <h3>Most Likely Disease: ${prediction.disease}</h3>
+                    <div class="confidence-bar">
+                        <div class="confidence-fill" style="width: ${confidence}%"></div>
+                    </div>
+                    <p><strong>Confidence:</strong> ${confidence}%</p>
+                    <p><strong>Description:</strong> ${prediction.description}</p>
+                </div>
+                
+                ${prediction.alternative_diseases && prediction.alternative_diseases.length > 0 ? `
+                    <div class="disease-result">
+                        <h4>Alternative Possibilities:</h4>
+                        ${prediction.alternative_diseases.map(alt => `
+                            <div style="margin: 10px 0; padding: 10px; background: #f8f9fa; border-radius: 5px;">
+                                <strong>${alt.disease}</strong> (${Math.round(alt.confidence * 100)}% confidence)
+                                <br><small>${alt.description}</small>
+                            </div>
+                        `).join('')}
+                    </div>
+                ` : ''}
+                
+                <div class="treatment-section">
+                    <h4><i class="fas fa-medkit"></i> Treatment Recommendations</h4>
+                    <p><strong>Immediate Actions:</strong></p>
+                    <ul>
+                        ${prediction.treatment.immediate_actions.map(action => `<li>${action}</li>`).join('')}
+                    </ul>
+                    
+                    <p><strong>Treatment Plan:</strong></p>
+                    <ul>
+                        ${prediction.treatment.treatment_plan.map(plan => `<li>${plan}</li>`).join('')}
+                    </ul>
+                    
+                    <p><strong>When to Consult Veterinarian:</strong> ${prediction.treatment.vet_consultation}</p>
+                </div>
+                
+                <div class="alert alert-warning">
+                    <strong>Important:</strong> This prediction is based on the symptoms provided and should not replace professional veterinary diagnosis. 
+                    Always consult with a qualified veterinarian for proper medical care.
+                </div>
+            `;
+            
+            container.style.display = 'block';
+            container.scrollIntoView({ behavior: 'smooth' });
+        }
+    </script>
+</body>
+</html>

@@ -45,7 +45,27 @@
     <!-- Animal Selection Section -->
     <section class="animal-selection">
         <div class="container">
-            <h2 class="section-title">Select Animal Type</h2>
+            <h2 class="section-title">Select Disease Detection Method</h2>
+            
+            <!-- Enhanced AI Prediction Option -->
+            <div class="special-option" style="margin-bottom: 30px; padding: 20px; border: 3px solid #2ecc71; border-radius: 15px; background: linear-gradient(135deg, #f8fff8, #e8f8e8); text-align: center;">
+                <div class="enhanced-ai-card" onclick="window.location.href='{{ url_for('ai_disease_prediction') }}';" style="cursor: pointer;">
+                    <div style="font-size: 3em; margin-bottom: 15px;">🧠</div>
+                    <h3 style="color: #2ecc71; margin-bottom: 10px;">Enhanced AI Disease Prediction</h3>
+                    <p style="font-size: 1.1em; color: #34495e; margin-bottom: 15px;">
+                        Advanced AI-powered prediction combining image analysis with comprehensive symptom assessment using Gemini AI.
+                        Get more accurate diagnoses by combining visual analysis with detailed symptom evaluation.
+                    </p>
+                    <button class="btn btn-primary" style="background: #2ecc71; border: none; padding: 12px 30px; border-radius: 25px; font-weight: bold;">
+                        Try Enhanced AI Prediction →
+                    </button>
+                </div>
+            </div>
+
+            <h3 class="section-subtitle" style="text-align: center; margin-bottom: 30px; color: #666;">
+                Or use traditional single-animal detection models:
+            </h3>
+            
             <div class="animals-grid">
                 <div class="animal-card" onclick="selectAnimal('cat')">
                     <div class="animal-icon">🐱</div>

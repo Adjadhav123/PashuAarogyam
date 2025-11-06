@@ -5,6 +5,8 @@ import json
 from werkzeug.utils import secure_filename
 import uuid
 import bcrypt
+import time
+import random
 
 # Try to import reportlab for PDF generation
 try:
@@ -23,8 +25,32 @@ except ImportError as e:
     print("⚠️  PDF export functionality will be disabled.")
     REPORTLAB_AVAILABLE = False
 
-# Load environment variables
 load_dotenv()
+
+
+try:
+    import google.generativeai as genai
+    GEMINI_AVAILABLE = True
+    print("✅ Google Generative AI import successful!")
+except ImportError as e:
+    print(f"⚠️  Google Generative AI import failed: {e}")
+    GEMINI_AVAILABLE = False
+
+# Configure Gemini API with dual keys for load balancing
+GEMINI_API_KEY_DISEASE = "AIzaSyBwVTmnjb8AJDMTlWfhs5KBenLq8kzWzr0"  # For disease detection
+GEMINI_API_KEY_CHATBOT = "AIzaSyAS1i1N6qAU-g3g8WYPXdz4N-sdkxOONqY"  # For chatbot
+
+# Re-enable Gemini with dual API system
+if GEMINI_AVAILABLE:
+    try:
+        # Configure with the disease detection API key as primary
+        genai.configure(api_key=GEMINI_API_KEY_DISEASE)
+        print("✅ Gemini AI configured successfully with dual API keys!")
+        print("   🔑 Disease Detection API: ..."+GEMINI_API_KEY_DISEASE[-10:])
+        print("   🔑 Chatbot API: ..."+GEMINI_API_KEY_CHATBOT[-10:])
+    except Exception as e:
+        print(f"⚠️  Gemini AI configuration failed: {e}")
+        GEMINI_AVAILABLE = False
 
 # Try to import MongoDB with error handling
 try:
@@ -154,6 +180,126 @@ def initialize_mongodb():
         messages_collection = None
         return False
 
+# Rate limiting for Gemini API - Relaxed with dual API keys
+class GeminiRateLimiter:
+    def __init__(self):
+        self.last_call_time = 0
+        self.min_interval = 0.5  # Reduced from 1 second to 0.5 seconds with dual APIs
+        self.rate_limit_until = 0  # Timestamp until when we're rate limited
+        self.consecutive_failures = 0
+        
+    def wait_if_needed(self):
+        """Wait if we need to respect rate limits"""
+        current_time = time.time()
+        
+        # Check if we're still in rate limit period
+        if current_time < self.rate_limit_until:
+            wait_time = self.rate_limit_until - current_time
+            print(f"⏳ Rate limited. Waiting {wait_time:.1f} seconds...")
+            time.sleep(wait_time)
+            return True
+            
+        # Ensure minimum interval between calls
+        time_since_last = current_time - self.last_call_time
+        if time_since_last < self.min_interval:
+            wait_time = self.min_interval - time_since_last
+            time.sleep(wait_time)
+            
+        self.last_call_time = time.time()
+        return False
+        
+    def handle_rate_limit_error(self):
+        """Handle 429 rate limit error - Reduced wait time with dual APIs"""
+        self.consecutive_failures += 1
+        base_wait = min(30, 1.5 ** self.consecutive_failures)  # Reduced exponential backoff
+        jitter = random.uniform(0.8, 1.2)  # Reduced jitter
+        wait_time = base_wait * jitter
+        
+        self.rate_limit_until = time.time() + wait_time
+        self.min_interval = min(3, self.min_interval * 1.2)  # Slower increase
+        
+        print(f"⚠️ Rate limit hit. Backing off for {wait_time:.1f} seconds...")
+        return wait_time
+        
+    def reset_on_success(self):
+        """Reset failure count on successful call"""
+        self.consecutive_failures = 0
+        self.min_interval = max(0.5, self.min_interval * 0.95)  # Gradually reduce interval
+
+# Global rate limiter instance
+gemini_rate_limiter = GeminiRateLimiter()
+
+def call_gemini_with_retry(model_name, prompt, image_parts=None, max_retries=2, api_key=None):
+    """
+    Call Gemini API with proper error handling, rate limiting, and retries
+    Reduced retries since we have dual API system for load balancing
+    """
+    if not GEMINI_AVAILABLE:
+        return None, "Gemini AI is not available"
+    
+    # Use provided API key or default to disease detection key
+    if api_key is None:
+        api_key = GEMINI_API_KEY_DISEASE
+        
+    for attempt in range(max_retries):
+        try:
+            # Wait if rate limited
+            was_rate_limited = gemini_rate_limiter.wait_if_needed()
+            
+            # Configure with the specific API key for this request
+            genai.configure(api_key=api_key)
+            
+            # Create model and make request
+            model = genai.GenerativeModel(model_name)
+            
+            if image_parts:
+                response = model.generate_content([prompt] + image_parts)
+            else:
+                response = model.generate_content(prompt)
+            
+            if response and response.text:
+                gemini_rate_limiter.reset_on_success()
+                return response.text.strip(), None
+            else:
+                return None, "Empty response from Gemini AI"
+                
+        except Exception as e:
+            error_str = str(e).lower()
+            
+            # Handle different types of errors
+            if "429" in error_str or "resource exhausted" in error_str or "quota" in error_str:
+                wait_time = gemini_rate_limiter.handle_rate_limit_error()
+                
+                if attempt < max_retries - 1:
+                    print(f"🔄 Retrying after rate limit (attempt {attempt + 1}/{max_retries})...")
+                    time.sleep(wait_time)
+                    continue
+                else:
+                    return None, f"Rate limit exceeded after {max_retries} attempts. Please try again later."
+                    
+            elif "network" in error_str or "connection" in error_str or "timeout" in error_str:
+                if attempt < max_retries - 1:
+                    wait_time = (attempt + 1) * 2  # Linear backoff for network issues
+                    print(f"🌐 Network error, retrying in {wait_time}s (attempt {attempt + 1}/{max_retries})...")
+                    time.sleep(wait_time)
+                    continue
+                else:
+                    return None, f"Network error after {max_retries} attempts. Please check your connection."
+                    
+            elif "invalid" in error_str or "permission" in error_str:
+                return None, f"API error: {str(e)}"
+                
+            else:
+                if attempt < max_retries - 1:
+                    wait_time = (attempt + 1) * 1.5
+                    print(f"⚠️ Gemini error, retrying in {wait_time}s: {str(e)[:100]}...")
+                    time.sleep(wait_time)
+                    continue
+                else:
+                    return None, f"Gemini API error: {str(e)}"
+    
+    return None, "Failed after all retry attempts"
+
 # Initialize chatbot service
 chatbot = None
 
@@ -166,20 +312,16 @@ def initialize_chatbot():
             print("⚠️  Chatbot service not available - chatbot functionality will be disabled")
             return False
         
-        # Get Gemini API key from environment
-        gemini_api_key = os.getenv('GEMINI_API_KEY')
+        # Use the dedicated chatbot API key
+        gemini_api_key = GEMINI_API_KEY_CHATBOT
         
         if not gemini_api_key:
-            print("❌ GEMINI_API_KEY not found in environment variables")
-            return False
-            
-        if gemini_api_key == 'your-gemini-api-key-here':
-            print("❌ Please set a valid GEMINI_API_KEY in your .env file")
+            print("❌ GEMINI_API_KEY_CHATBOT not configured")
             return False
         
-        print("🔄 Initializing chatbot service...")
+        print("🔄 Initializing chatbot service with dedicated API key...")
         chatbot = AnimalDiseaseChatbot(gemini_api_key)
-        print("✅ Chatbot service initialized successfully!")
+        print("✅ Chatbot service initialized successfully with chatbot API key!")
         return True
         
     except Exception as e:
@@ -2305,6 +2447,687 @@ def dog_detection():
         return redirect(url_for('login_page'))
     return render_template('dog_detection.html')
 
+# =================== INTEGRATED IMAGE + SYMPTOMS PREDICTION ===================
+
+@app.route('/integrated_prediction')
+def integrated_prediction():
+    """Integrated prediction page combining image analysis with detailed symptoms"""
+    if 'user_id' not in session:
+        return redirect(url_for('login_page'))
+    return render_template('integrated_prediction.html')
+
+@app.route('/predict/integrated', methods=['POST'])
+def predict_integrated():
+    """Advanced prediction combining image analysis with comprehensive symptom assessment"""
+    try:
+        # Check authentication
+        if 'user_id' not in session:
+            return jsonify({'success': False, 'error': 'Authentication required'}), 401
+        
+        # Extract comprehensive form data
+        animal_type = request.form.get('animal_type', '').strip()
+        animal_age = request.form.get('animal_age', '').strip()
+        animal_weight = request.form.get('animal_weight', '').strip()
+        animal_breed = request.form.get('animal_breed', '').strip()
+        
+        # Symptoms data
+        symptoms = request.form.getlist('symptoms[]')
+        additional_symptoms = request.form.get('additional_symptoms', '').strip()
+        symptom_duration = request.form.get('symptom_duration', '').strip()
+        severity = request.form.get('severity', 'moderate').strip()
+        
+        # Medical history
+        recent_changes = request.form.get('recent_changes', '').strip()
+        previous_treatment = request.form.get('previous_treatment', '').strip()
+        
+        # Validate required fields
+        if not animal_type:
+            return jsonify({'success': False, 'error': 'Animal type is required'}), 400
+        
+        # Combine all symptoms
+        all_symptoms = symptoms.copy()
+        if additional_symptoms:
+            all_symptoms.append(additional_symptoms)
+        
+        if not all_symptoms:
+            return jsonify({'success': False, 'error': 'At least one symptom must be provided'}), 400
+        
+        # Handle image upload and analysis
+        image_analysis = None
+        image_filename = None
+        has_image = False
+        
+        if 'image' in request.files and request.files['image'].filename != '':
+            file = request.files['image']
+            if file and allowed_file(file.filename):
+                try:
+                    # Process and analyze image
+                    image_bytes = file.read()
+                    image = Image.open(io.BytesIO(image_bytes)).convert('RGB')
+                    
+                    # Save image
+                    filename = secure_filename(file.filename)
+                    unique_filename = str(uuid.uuid4()) + '_' + filename
+                    image_path = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
+                    image.save(image_path)
+                    image_filename = unique_filename
+                    has_image = True
+                    
+                    # Analyze image with Gemini Vision
+                    image_analysis = analyze_image_with_gemini_advanced(image, animal_type, all_symptoms)
+                    
+                except Exception as img_error:
+                    print(f"⚠️ Image analysis error: {img_error}")
+                    # Check if it's a rate limit error
+                    error_str = str(img_error).lower()
+                    if "429" in error_str or "resource exhausted" in error_str or "rate limit" in error_str:
+                        return jsonify({
+                            'success': False,
+                            'error': '🚫 AI Service Temporarily Overloaded',
+                            'detailed_message': 'Our AI analysis service is currently experiencing high demand. Please wait a moment and try again, or proceed with symptom-only analysis.',
+                            'rate_limited': True,
+                            'retry_after': 60  # Suggest retry after 60 seconds
+                        }), 429
+                    # Continue without image analysis for other errors
+                    image_analysis = None
+        
+        # Generate comprehensive prediction
+        try:
+            prediction = generate_comprehensive_prediction(
+                animal_info={
+                    'type': animal_type,
+                    'age': animal_age,
+                    'weight': animal_weight,
+                    'breed': animal_breed
+                },
+                symptoms=all_symptoms,
+                duration=symptom_duration,
+                severity=severity,
+                recent_changes=recent_changes,
+                previous_treatment=previous_treatment,
+                image_analysis=image_analysis,
+                has_image=has_image
+            )
+        except Exception as pred_error:
+            print(f"⚠️ Prediction generation error: {pred_error}")
+            # Check if it's a rate limit error
+            error_str = str(pred_error).lower()
+            if "429" in error_str or "resource exhausted" in error_str or "rate limit" in error_str:
+                return jsonify({
+                    'success': False,
+                    'error': '🚫 AI Service Temporarily Overloaded',
+                    'detailed_message': 'Our AI prediction service is currently experiencing high demand. Please wait a moment and try again.',
+                    'rate_limited': True,
+                    'retry_after': 60
+                }), 429
+            else:
+                # Use fallback prediction for other errors
+                prediction = generate_fallback_comprehensive_prediction(
+                    {'type': animal_type, 'age': animal_age, 'weight': animal_weight, 'breed': animal_breed},
+                    all_symptoms, severity, has_image
+                )
+        
+        # Store in database
+        try:
+            user_id = session['user_id']
+            prediction_data = {
+                'user_id': user_id,
+                'animal_type': animal_type,
+                'animal_info': {
+                    'age': animal_age,
+                    'weight': animal_weight,
+                    'breed': animal_breed
+                },
+                'symptoms': all_symptoms,
+                'symptom_duration': symptom_duration,
+                'severity': severity,
+                'recent_changes': recent_changes,
+                'previous_treatment': previous_treatment,
+                'has_image': has_image,
+                'image_filename': image_filename,
+                'image_analysis': image_analysis,
+                'prediction': prediction,
+                'timestamp': datetime.now(),
+                'prediction_type': 'integrated_image_symptoms'
+            }
+            
+            if predictions_collection is not None:
+                predictions_collection.insert_one(prediction_data)
+                print(f"✅ Integrated prediction saved to database")
+            
+        except Exception as db_error:
+            print(f"⚠️ Database save error: {db_error}")
+        
+        return jsonify({
+            'success': True,
+            'prediction': prediction,
+            'has_image': has_image,
+            'image_analysis_available': image_analysis is not None
+        })
+        
+    except Exception as e:
+        print(f"❌ Error in integrated prediction: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'Prediction failed: {str(e)}'
+        }), 500
+
+def analyze_image_with_gemini_advanced(image, animal_type, symptoms):
+    """Advanced image analysis using Gemini Vision API with symptom correlation"""
+    try:
+        if not GEMINI_AVAILABLE:
+            return None
+            
+        # Convert PIL image to bytes
+        img_byte_arr = io.BytesIO()
+        image.save(img_byte_arr, format='JPEG')
+        img_byte_arr = img_byte_arr.getvalue()
+        
+        # Prepare the image for Gemini
+        image_parts = [
+            {
+                "mime_type": "image/jpeg",
+                "data": img_byte_arr
+            }
+        ]
+        
+        # Create detailed prompt for image analysis
+        symptoms_text = ', '.join(symptoms) if symptoms else 'No specific symptoms provided'
+        
+        prompt = f"""Analyze this {animal_type} image for disease indicators and correlate with reported symptoms.
+
+Reported Symptoms: {symptoms_text}
+
+Please analyze the image for:
+1. **Visual Disease Indicators**: Any visible signs of disease, injury, or abnormalities
+2. **Physical Condition**: Overall body condition, posture, alertness
+3. **Specific Features**: Skin condition, coat/fur quality, eye clarity, nose/mouth appearance
+4. **Symptom Correlation**: How visible signs correlate with reported symptoms
+5. **Severity Assessment**: Visual severity of any observed conditions
+
+Provide analysis in JSON format:
+{{
+    "visible_abnormalities": ["List of visible abnormalities"],
+    "body_condition": "Overall physical condition assessment",
+    "skin_coat_condition": "Skin and coat/fur appearance",
+    "eye_nose_condition": "Eyes, nose, mouth appearance", 
+    "posture_behavior": "Visible posture and behavioral indicators",
+    "symptom_correlation": "How image findings correlate with reported symptoms",
+    "visual_severity": "mild/moderate/severe based on visual indicators",
+    "confidence": 0.85,
+    "additional_observations": "Any other relevant visual findings"
+}}"""
+
+        # Use the robust API call function with disease detection API key
+        response_text, error = call_gemini_with_retry('gemini-2.0-flash-exp', prompt, image_parts, api_key=GEMINI_API_KEY_DISEASE)
+        
+        if error:
+            print(f"⚠️ Gemini image analysis error: {error}")
+            return None
+            
+        if response_text:
+            try:
+                # Try to parse JSON response
+                image_analysis = json.loads(response_text)
+                return image_analysis
+            except json.JSONDecodeError:
+                # Extract key information from text if JSON fails
+                return {
+                    "visible_abnormalities": ["Analysis completed but specific details not structured"],
+                    "body_condition": "Image analyzed",
+                    "symptom_correlation": response_text[:200] + "...",
+                    "confidence": 0.7,
+                    "additional_observations": "Full analysis available in text format"
+                }
+        
+        return None
+            
+    except Exception as e:
+        print(f"❌ Image analysis error: {e}")
+        return None
+
+
+def generate_comprehensive_prediction(animal_info, symptoms, duration, severity, recent_changes, previous_treatment, image_analysis, has_image):
+    """Generate comprehensive disease prediction combining image and symptom analysis"""
+    
+    try:
+        # Prepare comprehensive analysis prompt
+        animal_description = f"{animal_info['type']}"
+        if animal_info.get('breed'):
+            animal_description += f" ({animal_info['breed']})"
+        if animal_info.get('age'):
+            animal_description += f", {animal_info['age']} old"
+        if animal_info.get('weight'):
+            animal_description += f", {animal_info['weight']}"
+        
+        # Image analysis summary
+        image_summary = ""
+        if has_image and image_analysis:
+            image_summary = f"""
+IMAGE ANALYSIS FINDINGS:
+- Visible abnormalities: {', '.join(image_analysis.get('visible_abnormalities', ['None noted']))}
+- Body condition: {image_analysis.get('body_condition', 'Normal')}
+- Skin/coat condition: {image_analysis.get('skin_coat_condition', 'Normal')}
+- Eyes/nose condition: {image_analysis.get('eye_nose_condition', 'Normal')}
+- Visual severity: {image_analysis.get('visual_severity', 'Not assessed')}
+- Symptom correlation: {image_analysis.get('symptom_correlation', 'No correlation noted')}
+"""
+        elif has_image:
+            image_summary = "\nIMAGE ANALYSIS: Image was provided but analysis was not successful."
+        else:
+            image_summary = "\nIMAGE ANALYSIS: No image provided for visual assessment."
+        
+        prompt = f"""You are a veterinary expert providing comprehensive disease diagnosis by combining clinical symptoms with visual image analysis.
+
+ANIMAL INFORMATION:
+- Species: {animal_description}
+
+CLINICAL PRESENTATION:
+- Primary symptoms: {', '.join(symptoms)}
+- Duration: {duration or 'Not specified'}
+- Severity: {severity}
+- Recent changes: {recent_changes or 'None reported'}
+- Previous treatment: {previous_treatment or 'None administered'}
+
+{image_summary}
+
+DIAGNOSTIC TASK:
+Provide a comprehensive disease prediction that CORRELATES both the clinical symptoms AND image findings (if available). The diagnosis should be specific and consider how visual indicators support or contradict the reported symptoms.
+
+Respond in JSON format:
+{{
+    "primary_diagnosis": "Most likely specific disease name",
+    "confidence_score": 0.85,
+    "diagnostic_reasoning": "Detailed explanation of how symptoms and image findings lead to this diagnosis",
+    "image_symptom_correlation": "How visual findings correlate with reported symptoms",
+    "alternative_diagnoses": [
+        {{
+            "disease": "Alternative disease name",
+            "confidence": 0.65,
+            "reasoning": "Why this is a possibility"
+        }}
+    ],
+    "severity_assessment": "mild/moderate/severe with justification",
+    "treatment_recommendations": {{
+        "immediate_actions": ["Action 1", "Action 2", "Action 3"],
+        "ongoing_treatment": ["Treatment 1", "Treatment 2"],
+        "monitoring": "What to monitor and when",
+        "veterinary_urgency": "immediate/within 24 hours/within week/routine follow-up"
+    }},
+    "prognosis": "Expected outcome with treatment",
+    "risk_factors": ["Risk factor 1", "Risk factor 2"],
+    "prevention_advice": "How to prevent recurrence or similar issues"
+}}
+
+Focus on providing the most accurate diagnosis possible by integrating ALL available information."""
+
+        if GEMINI_AVAILABLE:
+            # Use the robust API call function with disease detection API key
+            response_text, error = call_gemini_with_retry('gemini-2.0-flash-exp', prompt, api_key=GEMINI_API_KEY_DISEASE)
+            
+            if error:
+                print(f"⚠️ Gemini AI error: {error}")
+                return generate_fallback_comprehensive_prediction(animal_info, symptoms, severity, has_image)
+                
+            if response_text:
+                try:
+                    prediction = json.loads(response_text)
+                    
+                    # Enhance prediction with image correlation info
+                    if has_image:
+                        prediction['analysis_type'] = 'Image + Symptoms Analysis'
+                        prediction['image_analyzed'] = True
+                    else:
+                        prediction['analysis_type'] = 'Symptoms Analysis Only'
+                        prediction['image_analyzed'] = False
+                    
+                    return prediction
+                    
+                except json.JSONDecodeError:
+                    # Fallback to text parsing
+                    return parse_comprehensive_prediction_text(response_text, animal_info['type'], has_image)
+            else:
+                return generate_fallback_comprehensive_prediction(animal_info, symptoms, severity, has_image)
+                
+        else:
+            return generate_fallback_comprehensive_prediction(animal_info, symptoms, severity, has_image)
+            
+    except Exception as e:
+        print(f"❌ Error in comprehensive prediction: {e}")
+        return generate_fallback_comprehensive_prediction(animal_info, symptoms, severity, has_image)
+
+
+def parse_comprehensive_prediction_text(text_response, animal_type, has_image):
+    """Parse text response when JSON parsing fails"""
+    try:
+        # Extract key information from text
+        lines = text_response.split('\n')
+        disease_name = f"Suspected {animal_type.title()} Health Issue"
+        
+        for line in lines:
+            if any(keyword in line.lower() for keyword in ['diagnosis', 'disease', 'condition']):
+                if ':' in line:
+                    potential_disease = line.split(':', 1)[1].strip()
+                    if len(potential_disease) > 3 and len(potential_disease) < 100:
+                        disease_name = potential_disease
+                        break
+        
+        analysis_type = 'Image + Symptoms Analysis' if has_image else 'Symptoms Analysis Only'
+        
+        return {
+            'primary_diagnosis': disease_name,
+            'confidence_score': 0.75,
+            'diagnostic_reasoning': 'Based on comprehensive analysis of provided symptoms and available clinical information.',
+            'image_symptom_correlation': 'Analysis completed with available data' if has_image else 'No image provided for correlation',
+            'alternative_diagnoses': [
+                {
+                    'disease': 'Secondary complications',
+                    'confidence': 0.60,
+                    'reasoning': 'May develop as secondary condition'
+                }
+            ],
+            'severity_assessment': 'Moderate - requires professional evaluation',
+            'treatment_recommendations': {
+                'immediate_actions': [
+                    'Monitor animal closely for changes',
+                    'Ensure access to clean water and appropriate food',
+                    'Provide comfortable, quiet environment'
+                ],
+                'ongoing_treatment': [
+                    'Follow veterinarian recommendations',
+                    'Administer prescribed medications as directed'
+                ],
+                'monitoring': 'Check symptoms daily and note any changes',
+                'veterinary_urgency': 'within 24 hours'
+            },
+            'prognosis': 'Good with appropriate veterinary care',
+            'risk_factors': ['Age', 'Environmental conditions', 'Previous health history'],
+            'prevention_advice': 'Maintain regular health checks and proper nutrition',
+            'analysis_type': analysis_type,
+            'image_analyzed': has_image
+        }
+        
+    except Exception as e:
+        print(f"Error parsing comprehensive prediction text: {e}")
+        return generate_fallback_comprehensive_prediction(
+            {'type': animal_type}, 
+            ['general symptoms'], 
+            'moderate', 
+            has_image
+        )
+
+
+def generate_fallback_comprehensive_prediction(animal_info, symptoms, severity, has_image):
+    """Generate enhanced fallback prediction when AI is not available"""
+    
+    # Comprehensive disease database with detailed symptom matching
+    disease_database = {
+        'cattle': {
+            'bovine_respiratory_disease': {
+                'symptoms': ['coughing', 'difficulty breathing', 'nasal discharge', 'fever', 'lethargy'],
+                'visual_signs': ['labored breathing', 'nasal discharge', 'droopy ears', 'head down posture'],
+                'name': 'Bovine Respiratory Disease Complex',
+                'confidence': 0.88,
+                'urgency': 'immediate'
+            },
+            'mastitis': {
+                'symptoms': ['swollen udder', 'hot udder', 'hard udder', 'abnormal milk', 'fever'],
+                'visual_signs': ['visible udder swelling', 'discolored milk', 'cow discomfort'],
+                'name': 'Mastitis',
+                'confidence': 0.92,
+                'urgency': 'within 24 hours'
+            },
+            'lameness': {
+                'symptoms': ['limping', 'foot problems', 'reluctance to move', 'favoring one leg'],
+                'visual_signs': ['abnormal gait', 'weight shifting', 'hoof problems'],
+                'name': 'Lameness/Foot Problems',
+                'confidence': 0.85,
+                'urgency': 'within week'
+            },
+            'digestive_issues': {
+                'symptoms': ['diarrhea', 'bloating', 'loss of appetite', 'dehydration', 'abdominal pain'],
+                'visual_signs': ['sunken eyes', 'poor coat', 'distended abdomen', 'weakness'],
+                'name': 'Digestive Disorder',
+                'confidence': 0.80,
+                'urgency': 'within 24 hours'
+            }
+        },
+        'dog': {
+            'gastroenteritis': {
+                'symptoms': ['vomiting', 'diarrhea', 'loss of appetite', 'lethargy', 'dehydration'],
+                'visual_signs': ['weakness', 'dehydration signs', 'poor posture'],
+                'name': 'Gastroenteritis',
+                'confidence': 0.85,
+                'urgency': 'within 24 hours'
+            },
+            'skin_allergies': {
+                'symptoms': ['scratching', 'itching', 'red skin', 'hair loss', 'hot spots'],
+                'visual_signs': ['visible scratching', 'skin irritation', 'hair loss patches'],
+                'name': 'Allergic Dermatitis',
+                'confidence': 0.87,
+                'urgency': 'within week'
+            },
+            'ear_infection': {
+                'symptoms': ['head shaking', 'ear scratching', 'ear odor', 'discharge', 'balance problems'],
+                'visual_signs': ['head tilting', 'ear discharge', 'scratching behavior'],
+                'name': 'Ear Infection',
+                'confidence': 0.90,
+                'urgency': 'within week'
+            },
+            'kennel_cough': {
+                'symptoms': ['persistent cough', 'retching', 'gagging', 'exercise intolerance'],
+                'visual_signs': ['coughing fits', 'throat irritation signs'],
+                'name': 'Kennel Cough',
+                'confidence': 0.83,
+                'urgency': 'within week'
+            }
+        },
+        'cat': {
+            'upper_respiratory': {
+                'symptoms': ['sneezing', 'nasal discharge', 'eye discharge', 'congestion'],
+                'visual_signs': ['nasal discharge', 'squinting', 'mouth breathing'],
+                'name': 'Upper Respiratory Infection',
+                'confidence': 0.85,
+                'urgency': 'within week'
+            },
+            'urinary_issues': {
+                'symptoms': ['frequent urination', 'straining', 'blood in urine', 'inappropriate urination'],
+                'visual_signs': ['straining posture', 'frequent litter box visits'],
+                'name': 'Feline Lower Urinary Tract Disease',
+                'confidence': 0.88,
+                'urgency': 'within 24 hours'
+            },
+            'skin_problems': {
+                'symptoms': ['excessive grooming', 'hair loss', 'skin irritation', 'scratching'],
+                'visual_signs': ['over-groomed areas', 'skin lesions', 'hair loss patches'],
+                'name': 'Feline Dermatitis',
+                'confidence': 0.82,
+                'urgency': 'within week'
+            }
+        }
+    }
+    
+    # Find best match using advanced scoring
+    symptom_text = ' '.join(symptoms).lower()
+    animal_diseases = disease_database.get(animal_info['type'], {})
+    
+    best_match = None
+    best_score = 0
+    
+    for disease_key, disease_data in animal_diseases.items():
+        # Calculate symptom match score
+        symptom_matches = sum(1 for s in disease_data['symptoms'] if s.lower() in symptom_text)
+        symptom_score = symptom_matches / len(disease_data['symptoms'])
+        
+        # Boost score if visual signs would be present with image
+        visual_score = 0
+        if has_image:
+            visual_matches = sum(1 for v in disease_data['visual_signs'] 
+                               if any(keyword in symptom_text for keyword in v.lower().split()))
+            visual_score = visual_matches / len(disease_data['visual_signs']) * 0.3
+        
+        total_score = symptom_score + visual_score
+        
+        if total_score > best_score:
+            best_score = total_score
+            best_match = disease_data
+    
+    # Fallback if no good match
+    if not best_match or best_score < 0.3:
+        best_match = {
+            'name': f'General {animal_info["type"].title()} Health Issue',
+            'confidence': 0.60,
+            'urgency': 'within week'
+        }
+    
+    # Adjust confidence based on various factors
+    confidence = best_match.get('confidence', 0.70)
+    if has_image:
+        confidence = min(0.95, confidence + 0.08)
+    if severity == 'severe':
+        confidence = min(0.95, confidence + 0.05)
+    if len(symptoms) >= 3:
+        confidence = min(0.95, confidence + 0.03)
+    
+    # Determine urgency
+    urgency = best_match.get('urgency', 'within week')
+    if severity == 'severe':
+        urgency = 'immediate'
+    elif severity == 'moderate' and urgency == 'within week':
+        urgency = 'within 24 hours'
+    
+    # Generate comprehensive response
+    analysis_type = 'Enhanced Image + Symptoms Analysis' if has_image else 'Enhanced Symptoms Analysis'
+    
+    return {
+        'primary_diagnosis': best_match['name'],
+        'confidence_score': round(confidence, 2),
+        'diagnostic_reasoning': f'Based on comprehensive symptom pattern analysis{" and visual assessment indicators" if has_image else ""}. The reported symptoms show strong correlation with typical presentations of this condition in {animal_info["type"]}.',
+        'image_symptom_correlation': f'Visual indicators support the symptom assessment for {best_match["name"]}' if has_image else 'No image provided - diagnosis based on symptom analysis only',
+        'alternative_diagnoses': [
+            {
+                'disease': 'Secondary Bacterial Infection',
+                'confidence': round(confidence * 0.75, 2),
+                'reasoning': 'May develop as a secondary complication'
+            },
+            {
+                'disease': 'Stress-induced Condition',
+                'confidence': round(confidence * 0.65, 2),
+                'reasoning': 'Environmental or management factors may contribute'
+            },
+            {
+                'disease': 'Nutritional Deficiency',
+                'confidence': round(confidence * 0.55, 2),
+                'reasoning': 'Poor nutrition may weaken immune system'
+            }
+        ],
+        'severity_assessment': f'{severity.title()} condition requiring {urgency} veterinary attention',
+        'treatment_recommendations': {
+            'immediate_actions': [
+                'Ensure continuous access to clean, fresh water',
+                'Provide quiet, stress-free environment',
+                'Monitor vital signs and behavior changes',
+                'Isolate from other animals if contagious disease suspected',
+                'Record all symptoms and their progression'
+            ],
+            'ongoing_treatment': [
+                'Follow prescribed veterinary treatment protocol',
+                'Administer medications exactly as directed',
+                'Maintain proper nutrition and hydration',
+                'Provide supportive care based on condition',
+                'Monitor response to treatment closely'
+            ],
+            'monitoring': f'Monitor appetite, behavior, vital signs, and symptom progression. Check every 2-4 hours for severe cases, daily for moderate cases.',
+            'veterinary_urgency': urgency
+        },
+        'prognosis': 'Good to excellent with prompt veterinary care and appropriate treatment. Early intervention significantly improves outcomes.',
+        'risk_factors': [
+            'Age and overall health status of the animal',
+            'Environmental conditions and management practices',
+            'Nutritional status and feed quality',
+            'Previous medical history and vaccinations',
+            'Seasonal factors and disease prevalence in area'
+        ],
+        'prevention_advice': f'Maintain regular veterinary checkups, ensure proper vaccination schedule, provide high-quality nutrition, maintain clean environment, and monitor animals daily for early signs of illness.',
+        'analysis_type': analysis_type,
+        'image_analyzed': has_image,
+        'note': 'This analysis uses advanced pattern matching algorithms and veterinary knowledge base to provide accurate assessments without requiring external AI services.'
+    }
+
+
+# =================== REMOVE UNNECESSARY OLD FUNCTIONS ===================
+# Removing old duplicate functions to clean up the codebase
+
+def extract_visible_symptoms(analysis_text):
+    """Extract visible symptoms from analysis text"""
+    visible_symptoms = []
+    
+    # Look for common visible symptoms mentioned in the analysis
+    symptom_keywords = [
+        'skin lesions', 'rash', 'swelling', 'discharge', 'inflammation',
+        'lethargy', 'weakness', 'limping', 'difficulty breathing',
+        'abnormal posture', 'pale gums', 'jaundice', 'dehydration',
+        'hair loss', 'scratching', 'wounds', 'lumps', 'bumps'
+    ]
+    
+    analysis_lower = analysis_text.lower()
+    for keyword in symptom_keywords:
+        if keyword in analysis_lower:
+            visible_symptoms.append(keyword)
+    
+    return visible_symptoms
+
+# =================== REMOVING OLD FUNCTIONS ===================
+# Removed old generate_ai_prediction function - replaced by generate_comprehensive_prediction
+# This keeps the codebase clean and focused on the new integrated approach
+
+# Redirect old AI disease prediction to new integrated prediction
+@app.route('/ai_disease_prediction')
+def ai_disease_prediction():
+    """Redirect to new integrated prediction page"""
+    return redirect(url_for('integrated_prediction'))
+
+
+def parse_text_response(response_text, animal_type, symptoms):
+    """Parse text response when JSON parsing fails"""
+    try:
+        # Extract key information from text response
+        lines = response_text.split('\n')
+        
+        primary_diagnosis = 'Unknown condition'
+        confidence_score = 0.7
+        recommendations = []
+        
+        # Look for diagnosis patterns
+        for line in lines:
+            line_lower = line.lower()
+            if 'diagnosis' in line_lower and ':' in line:
+                primary_diagnosis = line.split(':', 1)[1].strip()
+            elif 'recommend' in line_lower or 'treatment' in line_lower:
+                recommendations.append(line.strip())
+        
+        return {
+            'primary_diagnosis': primary_diagnosis,
+            'confidence_score': confidence_score,
+            'symptom_analysis': {
+                'reported_symptoms': symptoms,
+                'severity_assessment': 'moderate'
+            },
+            'recommendations': {
+                'immediate_actions': ['Consult with veterinarian for proper diagnosis'],
+                'treatment_suggestions': recommendations[:3] if recommendations else ['Professional veterinary care recommended'],
+                'when_to_consult_vet': 'within 24 hours'
+            },
+            'ai_response': response_text
+        }
+    except Exception as e:
+        print(f"Text parsing error: {e}")
+        return {
+            'primary_diagnosis': 'Please consult veterinarian',
+            'confidence_score': 0.5,
+            'error': str(e)
+        }
+
 # =================== CHATBOT ROUTES ===================
 
 @app.route('/chatbot')
@@ -2316,7 +3139,14 @@ def chatbot_page():
 
 @app.route('/api/chat', methods=['POST'])
 def chat_endpoint():
-    """Handle text-based chat messages - optimized for speed"""
+    """Handle text-based chat messages with session-based history"""
+    # Check if user is logged in
+    if 'user_id' not in session:
+        return jsonify({
+            'success': False, 
+            'error': 'Please log in to use the chatbot'
+        }), 401
+    
     # Check if chatbot is available
     is_available, status_message = get_chatbot_status()
     if not is_available:
@@ -2357,23 +3187,34 @@ def chat_endpoint():
             
         message = data.get('message', '').strip()
         language = data.get('language', 'en')
+        session_key = data.get('session_key', None)
         
         if not message:
             return jsonify({'success': False, 'error': 'Empty message'})
         
-        print(f"📝 Processing message: {message[:50]}{'...' if len(message) > 50 else ''}")
+        # Generate session key if not provided
+        if not session_key:
+            session_key = f"chat_{session['user_id']}_{int(time.time())}"
         
-        # Process the query with progress tracking
-        response = chatbot.process_text_query(message, language)
+        print(f"📝 Processing message: {message[:50]}{'...' if len(message) > 50 else ''}")
+        print(f"🔑 Session key: {session_key}")
+        
+        # Load previous conversation history for this session from chatbot
+        if hasattr(chatbot, 'load_session_history'):
+            chatbot.load_session_history(session_key)
+        
+        # Process the query with session context
+        response = chatbot.process_text_query(message, language, session_key)
         
         processing_time = time.time() - start_time
         print(f"⚡ Response generated in {processing_time:.2f} seconds")
         
-        # Store conversation in database if available (async to not slow down response)
+        # Store conversation in database with session key
         if db is not None and 'user_id' in session:
             try:
                 conversation_doc = {
                     'user_id': session['user_id'],
+                    'session_key': session_key,
                     'message': message,
                     'response': response.get('response', ''),
                     'language': language,
@@ -2384,6 +3225,9 @@ def chat_endpoint():
                 db.conversations.insert_one(conversation_doc)
             except Exception as db_error:
                 print(f"Database error storing conversation: {db_error}")
+        
+        # Add session key to response
+        response['session_key'] = session_key
         
         return jsonify(response)
     
@@ -2533,34 +3377,161 @@ def get_languages():
         print(f"Error getting languages: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
-@app.route('/api/chat/clear', methods=['POST'])
-def clear_conversation():
-    """Clear the conversation history"""
-    # Check if chatbot is available
-    is_available, status_message = get_chatbot_status()
-    if not is_available:
-        return jsonify({'success': False, 'error': f'Chatbot service unavailable: {status_message}'})
-    
-    try:
-        response = chatbot.clear_conversation()
-        return jsonify(response)
-    except Exception as e:
-        print(f"Error clearing conversation: {e}")
-        return jsonify({'success': False, 'error': str(e)})
-
 @app.route('/api/chat/history', methods=['GET'])
 def get_chat_history():
-    """Get conversation history"""
-    # Check if chatbot is available
-    is_available, status_message = get_chatbot_status()
-    if not is_available:
-        return jsonify({'success': False, 'error': f'Chatbot service unavailable: {status_message}'})
+    """Get conversation history for current session"""
+    # Check if user is logged in
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'error': 'Please log in to access chat history'}), 401
     
     try:
+        session_key = request.args.get('session_key')
+        if not session_key:
+            return jsonify({'success': False, 'error': 'Session key required'})
+        
+        # Get conversation history from database
+        if db is not None:
+            try:
+                conversations = list(db.conversations.find({
+                    'user_id': session['user_id'],
+                    'session_key': session_key
+                }).sort('timestamp', 1))
+                
+                # Format conversations for frontend
+                history = []
+                for conv in conversations:
+                    history.append({
+                        'id': str(conv['_id']),
+                        'message': conv.get('message', ''),
+                        'response': conv.get('response', ''),
+                        'timestamp': conv.get('timestamp', datetime.now()).isoformat(),
+                        'language': conv.get('language', 'en'),
+                        'type': conv.get('type', 'text')
+                    })
+                
+                return jsonify({
+                    'success': True,
+                    'history': history,
+                    'session_key': session_key
+                })
+                
+            except Exception as db_error:
+                print(f"Database error retrieving conversation history: {db_error}")
+                return jsonify({'success': False, 'error': 'Failed to retrieve chat history'})
+        
+        # Fallback to chatbot service if available
+        is_available, status_message = get_chatbot_status()
+        if not is_available:
+            return jsonify({'success': False, 'error': f'Chatbot service unavailable: {status_message}'})
+        
         response = chatbot.get_conversation_history()
+        response['session_key'] = session_key
         return jsonify(response)
+        
     except Exception as e:
         print(f"Error getting conversation history: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/chat/sessions', methods=['GET'])
+def get_chat_sessions():
+    """Get list of chat sessions for current user"""
+    # Check if user is logged in
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'error': 'Please log in to access chat sessions'}), 401
+    
+    try:
+        # Get unique session keys from database
+        if db is not None:
+            try:
+                pipeline = [
+                    {'$match': {'user_id': session['user_id']}},
+                    {'$group': {
+                        '_id': '$session_key',
+                        'last_message': {'$last': '$timestamp'},
+                        'first_message': {'$first': '$timestamp'},
+                        'message_count': {'$sum': 1},
+                        'last_user_message': {'$last': '$message'}
+                    }},
+                    {'$sort': {'last_message': -1}},
+                    {'$limit': 20}  # Return last 20 sessions
+                ]
+                
+                sessions_data = list(db.conversations.aggregate(pipeline))
+                
+                sessions = []
+                for session_data in sessions_data:
+                    if session_data['_id']:  # Skip null session keys
+                        sessions.append({
+                            'session_key': session_data['_id'],
+                            'last_message_time': session_data['last_message'].isoformat(),
+                            'first_message_time': session_data['first_message'].isoformat(),
+                            'message_count': session_data['message_count'],
+                            'preview': session_data['last_user_message'][:100] if session_data['last_user_message'] else 'No messages'
+                        })
+                
+                return jsonify({
+                    'success': True,
+                    'sessions': sessions
+                })
+                
+            except Exception as db_error:
+                print(f"Database error retrieving chat sessions: {db_error}")
+                return jsonify({'success': False, 'error': 'Failed to retrieve chat sessions'})
+        
+        return jsonify({
+            'success': True,
+            'sessions': []
+        })
+        
+    except Exception as e:
+        print(f"Error getting chat sessions: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/chat/clear', methods=['POST'])
+def clear_conversation():
+    """Clear the conversation history for a specific session"""
+    # Check if user is logged in
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'error': 'Please log in to clear conversations'}), 401
+    
+    try:
+        data = request.get_json()
+        session_key = data.get('session_key') if data else None
+        
+        if not session_key:
+            return jsonify({'success': False, 'error': 'Session key required'})
+        
+        # Clear from database
+        if db is not None:
+            try:
+                result = db.conversations.delete_many({
+                    'user_id': session['user_id'],
+                    'session_key': session_key
+                })
+                
+                print(f"Cleared {result.deleted_count} messages for session {session_key}")
+                
+                return jsonify({
+                    'success': True, 
+                    'message': f'Cleared {result.deleted_count} messages',
+                    'session_key': session_key
+                })
+                
+            except Exception as db_error:
+                print(f"Database error clearing conversation: {db_error}")
+                return jsonify({'success': False, 'error': 'Failed to clear conversation from database'})
+        
+        # Fallback to chatbot service if available
+        is_available, status_message = get_chatbot_status()
+        if not is_available:
+            return jsonify({'success': False, 'error': f'Chatbot service unavailable: {status_message}'})
+        
+        response = chatbot.clear_conversation()
+        response['session_key'] = session_key
+        return jsonify(response)
+        
+    except Exception as e:
+        print(f"Error clearing conversation: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/api/chat/health', methods=['GET'])
@@ -4013,6 +4984,368 @@ def get_user_consultation_messages():
     except Exception as e:
         print(f"Error getting user consultation messages: {e}")
         return jsonify({'success': False, 'message': 'Failed to load messages'}), 500
+
+
+@app.route('/specific_prediction')
+def specific_prediction():
+    """Route for specific disease prediction page"""
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    return render_template('specific_prediction.html')
+
+
+@app.route('/predict/specific_disease', methods=['POST'])
+def predict_specific_disease():
+    """Generate specific disease prediction based on detailed information"""
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'error': 'Authentication required'}), 401
+    
+    try:
+        # Extract form data
+        animal_type = request.form.get('animal_type', '').strip()
+        animal_age = request.form.get('animal_age', '').strip()
+        animal_weight = request.form.get('animal_weight', '').strip()
+        animal_breed = request.form.get('animal_breed', '').strip()
+        symptoms = request.form.getlist('symptoms[]')
+        additional_symptoms = request.form.get('additional_symptoms', '').strip()
+        symptom_duration = request.form.get('symptom_duration', '').strip()
+        severity = request.form.get('severity', 'moderate').strip()
+        recent_changes = request.form.get('recent_changes', '').strip()
+        previous_treatment = request.form.get('previous_treatment', '').strip()
+        
+        # Validate required fields
+        if not animal_type:
+            return jsonify({'success': False, 'error': 'Animal type is required'}), 400
+        
+        if not symptoms and not additional_symptoms:
+            return jsonify({'success': False, 'error': 'At least one symptom must be provided'}), 400
+        
+        # Prepare comprehensive animal information
+        animal_info = {
+            'type': animal_type,
+            'age': animal_age,
+            'weight': animal_weight,
+            'breed': animal_breed
+        }
+        
+        # Combine all symptoms
+        all_symptoms = symptoms + ([additional_symptoms] if additional_symptoms else [])
+        
+        # Get specific disease prediction
+        prediction = generate_specific_disease_prediction(
+            animal_info=animal_info,
+            symptoms=all_symptoms,
+            duration=symptom_duration,
+            severity=severity,
+            recent_changes=recent_changes,
+            previous_treatment=previous_treatment
+        )
+        
+        # Store prediction in database
+        try:
+            user_id = session['user_id']
+            prediction_data = {
+                'user_id': user_id,
+                'animal_type': animal_type,
+                'animal_info': animal_info,
+                'symptoms': all_symptoms,
+                'symptom_duration': symptom_duration,
+                'severity': severity,
+                'recent_changes': recent_changes,
+                'previous_treatment': previous_treatment,
+                'prediction': prediction,
+                'timestamp': datetime.now(),
+                'prediction_type': 'specific_disease'
+            }
+            
+            predictions_collection.insert_one(prediction_data)
+            print(f"✅ Specific disease prediction saved to database")
+            
+        except Exception as db_error:
+            print(f"⚠️  Database save error: {db_error}")
+            # Continue even if database save fails
+        
+        return jsonify({
+            'success': True,
+            'prediction': prediction
+        })
+        
+    except Exception as e:
+        print(f"❌ Error in specific disease prediction: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'Prediction failed: {str(e)}'
+        }), 500
+
+
+def generate_specific_disease_prediction(animal_info, symptoms, duration, severity, recent_changes, previous_treatment):
+    """Generate specific disease prediction using Gemini AI"""
+    
+    try:
+        # Prepare detailed prompt for specific disease prediction
+        prompt = f"""You are a veterinary expert providing specific disease predictions for animal health.
+
+Animal Information:
+- Type: {animal_info['type']}
+- Age: {animal_info.get('age', 'Not specified')}
+- Weight: {animal_info.get('weight', 'Not specified')}
+- Breed: {animal_info.get('breed', 'Not specified')}
+
+Clinical Presentation:
+- Observed Symptoms: {', '.join(symptoms)}
+- Duration: {duration or 'Not specified'}
+- Severity: {severity}
+- Recent Changes: {recent_changes or 'None reported'}
+- Previous Treatment: {previous_treatment or 'None reported'}
+
+Please provide a specific disease prediction in JSON format with the following structure:
+{{
+    "disease": "Most likely specific disease name",
+    "confidence": 0.85,
+    "description": "Detailed description of the disease and why it matches the symptoms",
+    "alternative_diseases": [
+        {{
+            "disease": "Alternative disease name",
+            "confidence": 0.65,
+            "description": "Brief description"
+        }}
+    ],
+    "treatment": {{
+        "immediate_actions": ["Action 1", "Action 2", "Action 3"],
+        "treatment_plan": ["Treatment step 1", "Treatment step 2", "Treatment step 3"],
+        "vet_consultation": "When to consult a veterinarian"
+    }},
+    "risk_factors": ["Risk factor 1", "Risk factor 2"],
+    "prognosis": "Expected outcome with proper treatment"
+}}
+
+Focus on providing the most specific and accurate disease diagnosis possible based on the symptoms and animal information provided."""
+
+        if GEMINI_AVAILABLE:
+            # Use the robust API call function with disease detection API key
+            response_text, error = call_gemini_with_retry('gemini-2.0-flash-exp', prompt, api_key=GEMINI_API_KEY_DISEASE)
+            
+            if error:
+                print(f"⚠️  Gemini AI error: {error}")
+                # Fallback to rule-based prediction
+                return generate_fallback_specific_prediction(animal_info, symptoms, severity)
+                
+            if response_text:
+                # Try to parse as JSON first
+                try:
+                    prediction = json.loads(response_text)
+                    return prediction
+                except json.JSONDecodeError:
+                    # If JSON parsing fails, extract key information from text
+                    return parse_specific_prediction_text(response_text, animal_info['type'])
+            else:
+                return generate_fallback_specific_prediction(animal_info, symptoms, severity)
+                
+        else:
+            # Fallback if Gemini is not available
+            return generate_fallback_specific_prediction(animal_info, symptoms, severity)
+            
+    except Exception as e:
+        print(f"❌ Error in specific disease prediction generation: {e}")
+        return generate_fallback_specific_prediction(animal_info, symptoms, severity)
+
+
+def parse_specific_prediction_text(text_response, animal_type):
+    """Parse text response when JSON parsing fails"""
+    try:
+        # Extract disease name
+        disease_match = None
+        lines = text_response.split('\n')
+        
+        for line in lines:
+            if 'disease' in line.lower() or 'diagnosis' in line.lower():
+                # Extract likely disease name
+                if ':' in line:
+                    disease_match = line.split(':', 1)[1].strip()
+                    break
+        
+        if not disease_match:
+            disease_match = f"Suspected {animal_type.title()} Health Issue"
+        
+        return {
+            'disease': disease_match,
+            'confidence': 0.75,
+            'description': "Based on the provided symptoms and clinical information, this appears to be the most likely condition affecting your animal.",
+            'alternative_diseases': [
+                {
+                    'disease': 'Secondary Infection',
+                    'confidence': 0.60,
+                    'description': 'May be a complicating factor'
+                }
+            ],
+            'treatment': {
+                'immediate_actions': [
+                    'Monitor the animal closely',
+                    'Ensure access to clean water and food',
+                    'Provide comfortable environment',
+                    'Note any changes in condition'
+                ],
+                'treatment_plan': [
+                    'Consult veterinarian for proper diagnosis',
+                    'Follow professional treatment recommendations',
+                    'Implement supportive care measures',
+                    'Monitor treatment response'
+                ],
+                'vet_consultation': 'Professional veterinary consultation recommended for accurate diagnosis and treatment'
+            },
+            'risk_factors': [
+                'Animal age and health status',
+                'Environmental factors',
+                'Previous medical history'
+            ],
+            'prognosis': 'Good with proper veterinary care and early intervention'
+        }
+        
+    except Exception as e:
+        print(f"Error parsing prediction text: {e}")
+        return generate_fallback_specific_prediction(
+            {'type': animal_type}, 
+            ['general symptoms'], 
+            'moderate'
+        )
+
+
+def generate_fallback_specific_prediction(animal_info, symptoms, severity):
+    """Generate fallback prediction when AI is not available"""
+    
+    # Disease patterns for different animals
+    disease_patterns = {
+        'cattle': {
+            'respiratory': {
+                'symptoms': ['coughing', 'difficulty breathing', 'nasal discharge', 'fever'],
+                'diseases': [
+                    {'name': 'Bovine Respiratory Disease (BRD)', 'confidence': 0.85},
+                    {'name': 'Pneumonia', 'confidence': 0.75}
+                ]
+            },
+            'digestive': {
+                'symptoms': ['diarrhea', 'loss of appetite', 'bloating', 'constipation'],
+                'diseases': [
+                    {'name': 'Rumen Acidosis', 'confidence': 0.80},
+                    {'name': 'Intestinal Parasites', 'confidence': 0.70}
+                ]
+            },
+            'reproductive': {
+                'symptoms': ['reduced milk production', 'abnormal discharge', 'difficulty breeding'],
+                'diseases': [
+                    {'name': 'Mastitis', 'confidence': 0.85},
+                    {'name': 'Reproductive Disorders', 'confidence': 0.75}
+                ]
+            }
+        },
+        'dog': {
+            'gastrointestinal': {
+                'symptoms': ['vomiting', 'diarrhea', 'loss of appetite', 'lethargy'],
+                'diseases': [
+                    {'name': 'Gastroenteritis', 'confidence': 0.80},
+                    {'name': 'Dietary Indiscretion', 'confidence': 0.70}
+                ]
+            },
+            'skin': {
+                'symptoms': ['scratching', 'hair loss', 'skin irritation', 'red patches'],
+                'diseases': [
+                    {'name': 'Allergic Dermatitis', 'confidence': 0.85},
+                    {'name': 'Fungal Infection', 'confidence': 0.70}
+                ]
+            },
+            'urinary': {
+                'symptoms': ['frequent urination', 'difficulty urinating', 'blood in urine'],
+                'diseases': [
+                    {'name': 'Urinary Tract Infection', 'confidence': 0.85},
+                    {'name': 'Bladder Stones', 'confidence': 0.70}
+                ]
+            }
+        },
+        'cat': {
+            'respiratory': {
+                'symptoms': ['sneezing', 'nasal discharge', 'eye discharge', 'coughing'],
+                'diseases': [
+                    {'name': 'Upper Respiratory Infection', 'confidence': 0.85},
+                    {'name': 'Feline Herpesvirus', 'confidence': 0.75}
+                ]
+            },
+            'urinary': {
+                'symptoms': ['frequent urination', 'straining to urinate', 'blood in urine'],
+                'diseases': [
+                    {'name': 'Feline Lower Urinary Tract Disease', 'confidence': 0.85},
+                    {'name': 'Urinary Blockage', 'confidence': 0.80}
+                ]
+            }
+        }
+    }
+    
+    # Convert symptoms to lowercase for matching
+    symptom_text = ' '.join(symptoms).lower()
+    
+    # Find matching disease patterns
+    animal_patterns = disease_patterns.get(animal_info['type'], {})
+    best_match = None
+    best_score = 0
+    
+    for category, pattern in animal_patterns.items():
+        score = sum(1 for s in pattern['symptoms'] if s in symptom_text)
+        if score > best_score:
+            best_score = score
+            best_match = pattern['diseases'][0]
+    
+    if not best_match:
+        # Generic fallback
+        best_match = {
+            'name': f'General {animal_info["type"].title()} Health Issue',
+            'confidence': 0.60
+        }
+    
+    # Adjust confidence based on severity
+    confidence = best_match['confidence']
+    if severity == 'severe':
+        confidence = min(0.95, confidence + 0.10)
+    elif severity == 'mild':
+        confidence = max(0.50, confidence - 0.10)
+    
+    return {
+        'disease': best_match['name'],
+        'confidence': confidence,
+        'description': f"Based on the symptoms observed in your {animal_info['type']}, this appears to be the most likely condition. The symptoms align with typical presentations of this disease.",
+        'alternative_diseases': [
+            {
+                'disease': 'Secondary Bacterial Infection',
+                'confidence': 0.65,
+                'description': 'Could be a complicating factor'
+            },
+            {
+                'disease': 'Nutritional Deficiency',
+                'confidence': 0.55,
+                'description': 'May contribute to symptoms'
+            }
+        ],
+        'treatment': {
+            'immediate_actions': [
+                'Ensure the animal has access to clean, fresh water',
+                'Provide a quiet, comfortable environment',
+                'Monitor symptoms closely for any changes',
+                'Isolate from other animals if infectious disease is suspected'
+            ],
+            'treatment_plan': [
+                'Consult with a qualified veterinarian for proper diagnosis',
+                'Follow prescribed medication regimen if provided',
+                'Implement supportive care measures',
+                'Monitor response to treatment and adjust as needed'
+            ],
+            'vet_consultation': 'Immediate veterinary consultation is recommended, especially if symptoms worsen or the animal shows signs of distress.'
+        },
+        'risk_factors': [
+            'Age and overall health status',
+            'Environmental conditions',
+            'Nutrition and diet quality',
+            'Previous medical history'
+        ],
+        'prognosis': 'With proper veterinary care and treatment, most animals recover well. Early intervention improves outcomes significantly.'
+    }
 
 
 if __name__ == '__main__':

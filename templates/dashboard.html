@@ -60,6 +60,12 @@
                     <p>Connect with expert veterinarians and get professional advice for your animals' health and wellness.</p>
                 </div>
 
+                <div class="feature-card clickable enhanced-ai enhanced-ai-highlight" onclick="window.location.href='{{ url_for('integrated_prediction') }}'">
+                    <span class="feature-icon">🔬</span>
+                    <h3>Integrated AI Prediction</h3>
+                    <p>Advanced disease prediction combining image analysis with comprehensive symptom assessment for most accurate diagnosis.</p>
+                </div>
+
                 <div class="feature-card clickable" onclick="window.location.href='{{ url_for('disease_detection') }}'">
                     <span class="feature-icon">🔬</span>
                     <h3>Disease Detection</h3>
@@ -70,6 +76,12 @@
                     <span class="feature-icon">💬</span>
                     <h3>AI Veterinary Assistant</h3>
                     <p>24/7 multilingual support with voice input/output for all your animal health questions and emergencies.</p>
+                </div>
+
+                <div class="feature-card clickable special-option" onclick="window.location.href='{{ url_for('specific_prediction') }}'">
+                    <span class="feature-icon">🎯</span>
+                    <h3>Specific Disease Prediction</h3>
+                    <p>Get targeted disease predictions based on detailed animal information, symptoms, and medical history for precise diagnosis.</p>
                 </div>
             </div>
         </div>

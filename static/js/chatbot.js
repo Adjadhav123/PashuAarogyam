@@ -7,6 +7,8 @@ class VeterinaryChatbot {
         this.synthesis = window.speechSynthesis;
         this.currentLanguage = 'en';
         this.voices = [];
+        this.currentSessionKey = null; // Store current session key
+        this.sessionHistory = {}; // Store chat history by session
         this.settings = {
             ttsEnabled: true,
             voiceInputEnabled: true,
@@ -24,6 +26,10 @@ class VeterinaryChatbot {
             
             this.loadSettings();
             console.log('✅ Settings loaded');
+            
+            // Load session history from localStorage
+            this.loadSessionFromStorage();
+            console.log('✅ Session history loaded');
             
             this.setupEventListeners();
             console.log('✅ Event listeners setup complete');
@@ -83,6 +89,7 @@ class VeterinaryChatbot {
             console.log('🎉 Veterinary Chatbot initialized successfully!');
             console.log('🌍 Current language:', this.currentLanguage);
             console.log('🗣️ Voice language:', this.settings.voiceLanguage);
+            console.log('🔑 Current session:', this.currentSessionKey);
             
         } catch (error) {
             console.error('❌ Critical error during chatbot initialization:', error);
@@ -260,6 +267,7 @@ class VeterinaryChatbot {
         }
 
         // Clear chat
+        // Clear chat button
         const clearChatBtn = document.getElementById('clearChatBtn');
         if (clearChatBtn) {
             clearChatBtn.addEventListener('click', () => {
@@ -269,6 +277,18 @@ class VeterinaryChatbot {
             console.log('✅ Clear chat button listener added');
         } else {
             console.error('❌ Clear chat button not found!');
+        }
+
+        // New session button
+        const newSessionBtn = document.getElementById('newSessionBtn');
+        if (newSessionBtn) {
+            newSessionBtn.addEventListener('click', () => {
+                console.log('🆕 New session button clicked!');
+                this.startNewSession();
+            });
+            console.log('✅ New session button listener added');
+        } else {
+            console.error('❌ New session button not found!');
         }
 
         // Settings
@@ -1066,8 +1086,17 @@ class VeterinaryChatbot {
 
         if (!message) return;
 
+        // Generate session key if not exists
+        if (!this.currentSessionKey) {
+            this.currentSessionKey = `chat_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            console.log('🔑 Generated new session key:', this.currentSessionKey);
+        }
+
         // Add user message to chat
         this.addMessage('user', message);
+        
+        // Store message in session history
+        this.storeMessageInSession('user', message);
         
         // Clear input
         input.value = '';
@@ -1084,7 +1113,8 @@ class VeterinaryChatbot {
                 },
                 body: JSON.stringify({
                     message: message,
-                    language: this.currentLanguage
+                    language: this.currentLanguage,
+                    session_key: this.currentSessionKey
                 })
             });
 
@@ -1094,14 +1124,25 @@ class VeterinaryChatbot {
                 this.hideTypingIndicator();
                 this.addMessage('bot', data.response);
                 this.speak(data.response);
+                
+                // Store bot response in session history
+                this.storeMessageInSession('bot', data.response);
+                
+                // Update session key if provided
+                if (data.session_key) {
+                    this.currentSessionKey = data.session_key;
+                }
             } else {
                 this.hideTypingIndicator();
                 // Handle improved error responses
                 if (data.fallback_response) {
                     this.addMessage('bot', data.fallback_response);
                     this.speak(data.fallback_response);
+                    this.storeMessageInSession('bot', data.fallback_response);
                 } else {
-                    this.addMessage('bot', `❌ ${data.error || 'Sorry, I encountered an error. Please try again.'}`);
+                    const errorMsg = `❌ ${data.error || 'Sorry, I encountered an error. Please try again.'}`;
+                    this.addMessage('bot', errorMsg);
+                    this.storeMessageInSession('bot', errorMsg);
                 }
                 
                 // Show error toast with more detail
@@ -1117,13 +1158,14 @@ class VeterinaryChatbot {
                 ? 'Unable to connect to the server. Please check your internet connection and try again.'
                 : `An error occurred: ${error.message}`;
             
-            this.addMessage('bot', `❌ ${errorMessage}`);
+            const finalErrorMsg = `❌ ${errorMessage}`;
+            this.addMessage('bot', finalErrorMsg);
+            this.storeMessageInSession('bot', finalErrorMsg);
             this.showToast('Connection failed: ' + error.message, 'error');
         }
-        // Removed the finally block with hideLoading() since we removed showLoading()
     }
 
-    addMessage(sender, text) {
+    addMessage(sender, text, storeInSession = true) {
         const messagesContainer = document.getElementById('chatMessages');
         const messageDiv = document.createElement('div');
         messageDiv.className = `message ${sender}-message`;
@@ -1141,6 +1183,11 @@ class VeterinaryChatbot {
         `;
 
         messagesContainer.appendChild(messageDiv);
+        
+        // Store in session if requested (default true)
+        if (storeInSession) {
+            this.storeMessageInSession(sender, text);
+        }
         
         if (this.settings.autoScrollEnabled) {
             this.scrollToBottom();
@@ -1450,34 +1497,9 @@ class VeterinaryChatbot {
     // =================== CHAT MANAGEMENT ===================
 
     async clearChat() {
-        if (!confirm('Are you sure you want to clear the chat history?')) return;
+        if (!confirm('Are you sure you want to clear the current chat session? This will remove all messages in this conversation.')) return;
 
-        try {
-            const response = await fetch('/api/chat/clear', {
-                method: 'POST'
-            });
-
-            const data = await response.json();
-            
-            if (data.success) {
-                // Clear UI safely
-                const messagesContainer = document.getElementById('chatMessages');
-                if (messagesContainer) {
-                    const welcomeMessage = this.safeQuerySelector(messagesContainer, '.welcome-message');
-                    messagesContainer.innerHTML = '';
-                    if (welcomeMessage) {
-                        messagesContainer.appendChild(welcomeMessage);
-                    }
-                }
-                
-                this.showToast('Chat cleared successfully', 'success');
-            } else {
-                throw new Error(data.error || 'Failed to clear chat');
-            }
-        } catch (error) {
-            console.error('Error clearing chat:', error);
-            this.showToast('Failed to clear chat: ' + error.message, 'error');
-        }
+        await this.clearCurrentSession();
     }
 
     // =================== MODALS ===================
@@ -1524,6 +1546,185 @@ class VeterinaryChatbot {
 
     closeSidePanel() {
         document.getElementById('sidePanel').style.display = 'none';
+    }
+
+    // =================== SESSION MANAGEMENT ===================
+
+    storeMessageInSession(sender, message) {
+        if (!this.currentSessionKey) return;
+        
+        if (!this.sessionHistory[this.currentSessionKey]) {
+            this.sessionHistory[this.currentSessionKey] = [];
+        }
+        
+        this.sessionHistory[this.currentSessionKey].push({
+            sender: sender,
+            message: message,
+            timestamp: new Date().toISOString()
+        });
+        
+        // Store in localStorage for persistence
+        this.saveSessionToStorage();
+        
+        // Update session indicator
+        this.updateSessionIndicator();
+        
+        console.log(`💾 Stored ${sender} message in session ${this.currentSessionKey}`);
+    }
+
+    saveSessionToStorage() {
+        try {
+            localStorage.setItem('chatbot_sessions', JSON.stringify(this.sessionHistory));
+            localStorage.setItem('chatbot_current_session', this.currentSessionKey);
+        } catch (error) {
+            console.warn('Failed to save session to localStorage:', error);
+        }
+    }
+
+    loadSessionFromStorage() {
+        try {
+            const sessions = localStorage.getItem('chatbot_sessions');
+            const currentSession = localStorage.getItem('chatbot_current_session');
+            
+            if (sessions) {
+                this.sessionHistory = JSON.parse(sessions);
+                console.log('✅ Loaded session history from localStorage');
+            }
+            
+            if (currentSession) {
+                this.currentSessionKey = currentSession;
+                console.log('✅ Restored current session:', currentSession);
+                // Restore chat messages for current session
+                this.restoreChatMessages();
+                // Update session indicator
+                this.updateSessionIndicator();
+            }
+        } catch (error) {
+            console.warn('Failed to load session from localStorage:', error);
+            this.sessionHistory = {};
+            this.currentSessionKey = null;
+        }
+    }
+
+    restoreChatMessages() {
+        if (!this.currentSessionKey || !this.sessionHistory[this.currentSessionKey]) return;
+        
+        const messages = this.sessionHistory[this.currentSessionKey];
+        const messagesContainer = document.getElementById('chatMessages');
+        
+        // Clear existing messages except welcome message
+        const welcomeMessage = messagesContainer.querySelector('.welcome-message');
+        messagesContainer.innerHTML = '';
+        if (welcomeMessage) {
+            messagesContainer.appendChild(welcomeMessage);
+        }
+        
+        // Restore all messages for this session
+        messages.forEach(msg => {
+            this.addMessage(msg.sender, msg.message, false); // false = don't store again
+        });
+        
+        // Update session indicator
+        this.updateSessionIndicator();
+        
+        console.log(`✅ Restored ${messages.length} messages for session ${this.currentSessionKey}`);
+    }
+
+    startNewSession() {
+        this.currentSessionKey = `chat_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        this.sessionHistory[this.currentSessionKey] = [];
+        this.saveSessionToStorage();
+        
+        // Clear current chat display
+        const messagesContainer = document.getElementById('chatMessages');
+        const welcomeMessage = messagesContainer.querySelector('.welcome-message');
+        messagesContainer.innerHTML = '';
+        if (welcomeMessage) {
+            messagesContainer.appendChild(welcomeMessage);
+        }
+        
+        // Update session indicator
+        this.updateSessionIndicator();
+        
+        console.log('🆕 Started new chat session:', this.currentSessionKey);
+        this.showToast('Started new chat session', 'success', 2000);
+    }
+
+    updateSessionIndicator() {
+        const indicator = document.getElementById('sessionIndicator');
+        if (indicator) {
+            if (this.currentSessionKey) {
+                const sessionTime = new Date(parseInt(this.currentSessionKey.split('_')[1])).toLocaleTimeString();
+                const messageCount = this.sessionHistory[this.currentSessionKey]?.length || 0;
+                indicator.textContent = `Session: ${sessionTime} (${Math.floor(messageCount/2)} exchanges)`;
+            } else {
+                indicator.textContent = 'Online - Ready to help with animal health';
+            }
+        }
+    }
+
+    async clearCurrentSession() {
+        if (!this.currentSessionKey) {
+            this.showToast('No active session to clear', 'info', 2000);
+            return;
+        }
+
+        try {
+            // Clear from server
+            const response = await fetch('/api/chat/clear', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    session_key: this.currentSessionKey
+                })
+            });
+
+            const data = await response.json();
+            
+            if (data.success) {
+                // Clear from local storage
+                delete this.sessionHistory[this.currentSessionKey];
+                this.saveSessionToStorage();
+                
+                // Clear UI
+                const messagesContainer = document.getElementById('chatMessages');
+                const welcomeMessage = messagesContainer.querySelector('.welcome-message');
+                messagesContainer.innerHTML = '';
+                if (welcomeMessage) {
+                    messagesContainer.appendChild(welcomeMessage);
+                }
+                
+                // Update session indicator
+                this.updateSessionIndicator();
+                
+                this.showToast('Chat history cleared', 'success', 2000);
+                console.log('✅ Session cleared:', this.currentSessionKey);
+            } else {
+                this.showToast('Failed to clear chat history', 'error');
+            }
+        } catch (error) {
+            console.error('Error clearing session:', error);
+            this.showToast('Failed to clear chat history', 'error');
+        }
+    }
+
+    async loadChatSessions() {
+        try {
+            const response = await fetch('/api/chat/sessions');
+            const data = await response.json();
+            
+            if (data.success) {
+                return data.sessions;
+            } else {
+                console.error('Failed to load chat sessions:', data.error);
+                return [];
+            }
+        } catch (error) {
+            console.error('Error loading chat sessions:', error);
+            return [];
+        }
     }
 
     // =================== NOTIFICATIONS ===================

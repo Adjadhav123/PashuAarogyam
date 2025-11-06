@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Integrated Disease Prediction - PashuAarogyam</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/disease-detection.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .integrated-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 30px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+        }
+        
+        .header-section {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 15px;
+            color: white;
+        }
+        
+        .header-section h1 {
+            margin: 0;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .section-card {
+            margin-bottom: 25px;
+            padding: 25px;
+            border: 2px solid #e0e0e0;
+            border-radius: 15px;
+            background: #f9f9f9;
+            transition: all 0.3s ease;
+        }
+        
+        .section-card:hover {
+            border-color: #667eea;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.1);
+        }
+        
+        .section-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            color: #2c3e50;
+        }
+        
+        .section-icon {
+            font-size: 1.5em;
+            margin-right: 15px;
+            color: #667eea;
+        }
+        
+        .section-title {
+            font-size: 1.3em;
+            font-weight: bold;
+            margin: 0;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #34495e;
+        }
+        
+        .form-control {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+        
+        .form-control:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+        
+        .image-upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            background: #f8f9ff;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .image-upload-area:hover {
+            background: #e8f0ff;
+            border-color: #5a67d8;
+        }
+        
+        .image-upload-area.dragover {
+            background: #e8f0ff;
+            border-color: #5a67d8;
+            transform: scale(1.02);
+        }
+        
+        .upload-icon {
+            font-size: 3em;
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+        
+        .image-preview {
+            max-width: 300px;
+            max-height: 300px;
+            border-radius: 10px;
+            margin: 20px auto;
+            display: none;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        .symptoms-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .symptom-checkbox {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: white;
+        }
+        
+        .symptom-checkbox:hover {
+            border-color: #667eea;
+            background: #f8f9ff;
+        }
+        
+        .symptom-checkbox input {
+            margin-right: 10px;
+            transform: scale(1.2);
+        }
+        
+        .symptom-checkbox input:checked + span {
+            color: #667eea;
+            font-weight: 600;
+        }
+        
+        .predict-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 18px 40px;
+            border-radius: 25px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 30px;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+        
+        .predict-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+        
+        .predict-button:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .loading-container {
+            text-align: center;
+            padding: 40px;
+            display: none;
+        }
+        
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .results-container {
+            margin-top: 40px;
+            padding: 30px;
+            background: linear-gradient(135deg, #e8f5e8, #f0fdf4);
+            border-radius: 15px;
+            border-left: 5px solid #10b981;
+            display: none;
+        }
+        
+        .result-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+        
+        .result-icon {
+            font-size: 2em;
+            color: #10b981;
+            margin-right: 15px;
+        }
+        
+        .result-title {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #065f46;
+            margin: 0;
+        }
+        
+        .diagnosis-card {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+        }
+        
+        .confidence-meter {
+            width: 100%;
+            height: 25px;
+            background: #e5e7eb;
+            border-radius: 12px;
+            overflow: hidden;
+            margin: 15px 0;
+        }
+        
+        .confidence-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ef4444, #f59e0b, #10b981);
+            border-radius: 12px;
+            transition: width 1.5s ease;
+        }
+        
+        .treatment-section {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            margin-top: 20px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+        }
+        
+        .urgency-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.9em;
+            margin: 10px 0;
+        }
+        
+        .urgency-immediate {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+        
+        .urgency-24hours {
+            background: #fef3c7;
+            color: #d97706;
+        }
+        
+        .urgency-week {
+            background: #dbeafe;
+            color: #2563eb;
+        }
+        
+        .analysis-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            background: #667eea;
+            color: white;
+            border-radius: 15px;
+            font-size: 0.9em;
+            margin-bottom: 15px;
+        }
+        
+        .correlation-info {
+            background: #f0f9ff;
+            border: 1px solid #bae6fd;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        
+        .alert {
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border-left: 4px solid;
+        }
+        
+        .alert-warning {
+            background: #fef3c7;
+            border-color: #f59e0b;
+            color: #92400e;
+        }
+        
+        .navbar {
+            background: #2c3e50;
+            padding: 15px 0;
+        }
+        
+        .nav-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+        }
+        
+        .nav-logo a {
+            color: white;
+            text-decoration: none;
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+        
+        .nav-menu {
+            display: flex;
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .nav-link {
+            color: white;
+            text-decoration: none;
+            padding: 10px 15px;
+            margin: 0 5px;
+            border-radius: 5px;
+            transition: background 0.3s ease;
+        }
+        
+        .nav-link:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+        /* Rate limit error styles */
+        .rate-limit-error {
+            background: linear-gradient(135deg, #ffebee, #fce4ec);
+            border: 2px solid #ff6b6b;
+            border-radius: 15px;
+            padding: 30px;
+            text-align: center;
+            box-shadow: 0 6px 20px rgba(255, 107, 107, 0.3);
+            margin: 20px 0;
+        }
+
+        .rate-limit-error h3 {
+            color: #d32f2f;
+            margin: 15px 0;
+            font-size: 1.5em;
+        }
+
+        .rate-limit-error p {
+            color: #666;
+            margin: 10px 0;
+            line-height: 1.6;
+        }
+
+        .retry-info {
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .countdown-timer {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #ff6b6b;
+            margin: 15px 0;
+        }
+
+        .retry-button {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 10px 0;
+        }
+
+        .retry-button:enabled {
+            background: #28a745;
+        }
+
+        .retry-button:enabled:hover {
+            background: #218838;
+            transform: translateY(-2px);
+        }
+
+        .retry-button:disabled {
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        .alternative-options {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: left;
+        }
+
+        .alternative-options h4 {
+            color: #495057;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .alternative-options ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        .alternative-options li {
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .alternative-options li:last-child {
+            border-bottom: none;
+        }
+
+        .alternative-options a {
+            color: #007bff;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .alternative-options a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-logo">
+                <a href="{{ url_for('dashboard') }}">
+                    <i class="fas fa-paw"></i>
+                    PashuAarogyam
+                </a>
+            </div>
+            <ul class="nav-menu">
+                <li><a href="{{ url_for('dashboard') }}" class="nav-link">
+                    <i class="fas fa-home"></i> Dashboard
+                </a></li>
+                <li><a href="{{ url_for('disease_detection') }}" class="nav-link">
+                    <i class="fas fa-stethoscope"></i> Disease Detection
+                </a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="integrated-container">
+            <div class="header-section">
+                <h1><i class="fas fa-microscope"></i> Integrated Disease Prediction</h1>
+                <p>Advanced disease prediction combining image analysis with comprehensive symptom assessment</p>
+            </div>
+
+            <form id="integratedPredictionForm" enctype="multipart/form-data">
+                <!-- Animal Information -->
+                <div class="section-card">
+                    <div class="section-header">
+                        <i class="fas fa-paw section-icon"></i>
+                        <h2 class="section-title">Animal Information</h2>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="animalType">Animal Type *</label>
+                        <select class="form-control" id="animalType" name="animal_type" required>
+                            <option value="">Select Animal Type</option>
+                            <option value="cattle">Cattle/Cow</option>
+                            <option value="dog">Dog</option>
+                            <option value="cat">Cat</option>
+                            <option value="pig">Pig</option>
+                            <option value="goat">Goat</option>
+                            <option value="sheep">Sheep</option>
+                            <option value="horse">Horse</option>
+                            <option value="chicken">Chicken</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label" for="animalAge">Age</label>
+                            <input type="text" class="form-control" id="animalAge" name="animal_age" placeholder="e.g., 2 years, 6 months">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="animalWeight">Weight</label>
+                            <input type="text" class="form-control" id="animalWeight" name="animal_weight" placeholder="e.g., 50 kg, 25 lbs">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="animalBreed">Breed</label>
+                            <input type="text" class="form-control" id="animalBreed" name="animal_breed" placeholder="e.g., Holstein, Labrador">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Image Upload -->
+                <div class="section-card">
+                    <div class="section-header">
+                        <i class="fas fa-camera section-icon"></i>
+                        <h2 class="section-title">Animal Image (Optional but Recommended)</h2>
+                    </div>
+                    
+                    <div class="image-upload-area" onclick="document.getElementById('imageInput').click()">
+                        <i class="fas fa-cloud-upload-alt upload-icon"></i>
+                        <p><strong>Click to upload</strong> or drag and drop an image</p>
+                        <p>Upload a clear photo of your animal for visual analysis</p>
+                        <input type="file" id="imageInput" name="image" accept="image/*" style="display: none;">
+                    </div>
+                    
+                    <img id="imagePreview" class="image-preview" alt="Animal preview">
+                    <p id="imageInfo" style="text-align: center; color: #666; margin-top: 10px; display: none;"></p>
+                </div>
+
+                <!-- Symptoms Selection -->
+                <div class="section-card">
+                    <div class="section-header">
+                        <i class="fas fa-thermometer-half section-icon"></i>
+                        <h2 class="section-title">Observed Symptoms</h2>
+                    </div>
+                    
+                    <div class="symptoms-grid" id="symptomsContainer">
+                        <!-- Symptoms will be populated based on animal type -->
+                    </div>
+                    
+                    <div class="form-group" style="margin-top: 25px;">
+                        <label class="form-label" for="additionalSymptoms">Additional Symptoms or Observations</label>
+                        <textarea class="form-control" id="additionalSymptoms" name="additional_symptoms" rows="3" placeholder="Describe any other symptoms, behaviors, or observations not listed above..."></textarea>
+                    </div>
+                </div>
+
+                <!-- Medical History & Details -->
+                <div class="section-card">
+                    <div class="section-header">
+                        <i class="fas fa-history section-icon"></i>
+                        <h2 class="section-title">Medical History & Details</h2>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label" for="symptomDuration">Symptom Duration</label>
+                            <select class="form-control" id="symptomDuration" name="symptom_duration">
+                                <option value="">Select duration</option>
+                                <option value="less than 1 day">Less than 1 day</option>
+                                <option value="1-2 days">1-2 days</option>
+                                <option value="3-7 days">3-7 days</option>
+                                <option value="1-2 weeks">1-2 weeks</option>
+                                <option value="2-4 weeks">2-4 weeks</option>
+                                <option value="more than 1 month">More than 1 month</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="severity">Severity Level</label>
+                            <select class="form-control" id="severity" name="severity">
+                                <option value="mild">Mild</option>
+                                <option value="moderate" selected>Moderate</option>
+                                <option value="severe">Severe</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="recentChanges">Recent Changes (environment, diet, medication, etc.)</label>
+                        <textarea class="form-control" id="recentChanges" name="recent_changes" rows="2" placeholder="Any recent changes in diet, environment, medication, or routine..."></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="previousTreatment">Previous Treatment or Medication</label>
+                        <textarea class="form-control" id="previousTreatment" name="previous_treatment" rows="2" placeholder="Any medications given or treatments tried..."></textarea>
+                    </div>
+                </div>
+
+                <button type="submit" class="predict-button" id="predictButton">
+                    <i class="fas fa-search"></i> Generate Integrated Prediction
+                </button>
+            </form>
+
+            <!-- Loading -->
+            <div class="loading-container" id="loadingContainer">
+                <div class="loading-spinner"></div>
+                <p><strong>Analyzing image and symptoms...</strong></p>
+                <p>Our AI is processing your data to provide the most accurate prediction possible.</p>
+            </div>
+
+            <!-- Results -->
+            <div class="results-container" id="resultsContainer">
+                <!-- Results will be populated here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Animal-specific symptoms
+        const animalSymptoms = {
+            cattle: [
+                'Loss of appetite', 'Fever', 'Difficulty breathing', 'Coughing', 'Nasal discharge',
+                'Diarrhea', 'Constipation', 'Lameness', 'Swelling', 'Reduced milk production',
+                'Lethargy', 'Weight loss', 'Bloating', 'Excessive salivation', 'Skin lesions',
+                'Eye discharge', 'Drooling', 'Abnormal posture', 'Difficulty walking', 'Trembling'
+            ],
+            dog: [
+                'Vomiting', 'Diarrhea', 'Loss of appetite', 'Lethargy', 'Excessive drinking',
+                'Frequent urination', 'Difficulty breathing', 'Coughing', 'Limping',
+                'Scratching', 'Hair loss', 'Skin irritation', 'Eye discharge', 'Ear discharge',
+                'Bad breath', 'Swollen abdomen', 'Pale gums', 'Excessive panting', 'Seizures'
+            ],
+            cat: [
+                'Vomiting', 'Diarrhea', 'Loss of appetite', 'Lethargy', 'Excessive drinking',
+                'Frequent urination', 'Difficulty breathing', 'Coughing', 'Sneezing',
+                'Eye discharge', 'Nasal discharge', 'Scratching', 'Hair loss', 'Hiding behavior',
+                'Changes in litter box habits', 'Bad breath', 'Drooling', 'Weight loss'
+            ],
+            pig: [
+                'Loss of appetite', 'Fever', 'Coughing', 'Difficulty breathing', 'Diarrhea',
+                'Lameness', 'Skin lesions', 'Lethargy', 'Weight loss', 'Excessive drinking',
+                'Vomiting', 'Trembling', 'Abnormal behavior', 'Discharge from nose/eyes'
+            ],
+            goat: [
+                'Loss of appetite', 'Fever', 'Coughing', 'Difficulty breathing', 'Diarrhea',
+                'Lameness', 'Lethargy', 'Weight loss', 'Bloating', 'Nasal discharge',
+                'Abnormal behavior', 'Difficulty standing', 'Pale gums', 'Swelling'
+            ],
+            sheep: [
+                'Loss of appetite', 'Fever', 'Coughing', 'Difficulty breathing', 'Diarrhea',
+                'Lameness', 'Lethargy', 'Weight loss', 'Wool loss', 'Skin irritation',
+                'Abnormal behavior', 'Difficulty walking', 'Swelling', 'Pale gums'
+            ],
+            horse: [
+                'Loss of appetite', 'Colic', 'Lameness', 'Difficulty breathing', 'Coughing',
+                'Nasal discharge', 'Lethargy', 'Weight loss', 'Excessive sweating', 'Swelling',
+                'Abnormal behavior', 'Difficulty moving', 'Changes in manure', 'Fever'
+            ],
+            chicken: [
+                'Loss of appetite', 'Lethargy', 'Difficulty breathing', 'Coughing', 'Sneezing',
+                'Diarrhea', 'Reduced egg production', 'Abnormal behavior', 'Feather loss', 'Swelling',
+                'Eye/nasal discharge', 'Pale comb', 'Difficulty walking', 'Changes in vocalization'
+            ]
+        };
+
+        // Update symptoms based on animal type
+        document.getElementById('animalType').addEventListener('change', function() {
+            const animalType = this.value;
+            const container = document.getElementById('symptomsContainer');
+            
+            if (animalType && animalSymptoms[animalType]) {
+                const symptoms = animalSymptoms[animalType];
+                container.innerHTML = symptoms.map(symptom => `
+                    <label class="symptom-checkbox">
+                        <input type="checkbox" name="symptoms[]" value="${symptom}">
+                        <span>${symptom}</span>
+                    </label>
+                `).join('');
+            } else {
+                container.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: #666;">Please select an animal type to see available symptoms.</p>';
+            }
+        });
+
+        // Image upload handling
+        const imageInput = document.getElementById('imageInput');
+        const imagePreview = document.getElementById('imagePreview');
+        const imageInfo = document.getElementById('imageInfo');
+        const uploadArea = document.querySelector('.image-upload-area');
+
+        imageInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    imagePreview.src = e.target.result;
+                    imagePreview.style.display = 'block';
+                    imageInfo.textContent = `Image selected: ${file.name} (${(file.size/1024/1024).toFixed(2)} MB)`;
+                    imageInfo.style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Drag and drop functionality
+        uploadArea.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', function(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                imageInput.files = files;
+                imageInput.dispatchEvent(new Event('change'));
+            }
+        });
+
+        // Form submission
+        document.getElementById('integratedPredictionForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            
+            // Get selected symptoms
+            const selectedSymptoms = Array.from(document.querySelectorAll('input[name="symptoms[]"]:checked'))
+                .map(cb => cb.value);
+            
+            // Add symptoms to form data
+            selectedSymptoms.forEach(symptom => {
+                formData.append('symptoms[]', symptom);
+            });
+            
+            // Show loading
+            document.getElementById('loadingContainer').style.display = 'block';
+            document.getElementById('resultsContainer').style.display = 'none';
+            document.getElementById('predictButton').disabled = true;
+            
+            try {
+                const response = await fetch('/predict/integrated', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayResults(data.prediction, data.has_image, data.image_analysis_available);
+                } else {
+                    // Handle different types of errors
+                    if (data.rate_limited) {
+                        showRateLimitError(data);
+                    } else {
+                        alert('Error: ' + (data.error || 'Prediction failed'));
+                    }
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                // Check if it's a network error with rate limiting
+                if (error.message && error.message.includes('429')) {
+                    showRateLimitError({
+                        error: '🚫 AI Service Temporarily Overloaded',
+                        detailed_message: 'Our AI service is experiencing high demand. Please wait and try again.',
+                        retry_after: 60
+                    });
+                } else {
+                    alert('Network error. Please try again.');
+                }
+            } finally {
+                document.getElementById('loadingContainer').style.display = 'none';
+                document.getElementById('predictButton').disabled = false;
+            }
+        });
+
+        function showRateLimitError(errorData) {
+            const container = document.getElementById('resultsContainer');
+            const retryTime = errorData.retry_after || 60;
+            
+            container.innerHTML = `
+                <div class="rate-limit-error">
+                    <i class="fas fa-clock" style="font-size: 48px; color: #ff6b6b; margin-bottom: 15px;"></i>
+                    <h3>${errorData.error}</h3>
+                    <p>${errorData.detailed_message}</p>
+                    <div class="retry-info">
+                        <p><strong>Suggested wait time:</strong> ${retryTime} seconds</p>
+                        <div class="countdown-timer" id="countdownTimer"></div>
+                        <button onclick="location.reload()" class="retry-button" id="retryButton" disabled>
+                            <i class="fas fa-redo"></i> Try Again
+                        </button>
+                    </div>
+                    <div class="alternative-options">
+                        <h4>Alternative Options:</h4>
+                        <ul>
+                            <li>Wait and try again with the same information</li>
+                            <li>Use our <a href="/disease_detection">standard disease detection</a> for quick analysis</li>
+                            <li>Chat with our <a href="/chatbot">AI assistant</a> about symptoms</li>
+                            <li>Request a <a href="/consultation_request">consultation with a veterinarian</a></li>
+                        </ul>
+                    </div>
+                </div>
+            `;
+            
+            container.style.display = 'block';
+            
+            // Start countdown timer
+            startCountdown(retryTime);
+        }
+
+        function startCountdown(seconds) {
+            const timerElement = document.getElementById('countdownTimer');
+            const retryButton = document.getElementById('retryButton');
+            let remaining = seconds;
+            
+            const updateTimer = () => {
+                if (remaining > 0) {
+                    timerElement.textContent = `Retry available in: ${remaining} seconds`;
+                    remaining--;
+                    setTimeout(updateTimer, 1000);
+                } else {
+                    timerElement.textContent = 'You can try again now!';
+                    retryButton.disabled = false;
+                    retryButton.style.background = '#28a745';
+                }
+            };
+            
+            updateTimer();
+        }
+
+        function displayResults(prediction, hasImage, imageAnalysisAvailable) {
+            const container = document.getElementById('resultsContainer');
+            const confidence = Math.round((prediction.confidence_score || 0.8) * 100);
+            
+            // Determine urgency badge class
+            const urgency = prediction.treatment_recommendations?.veterinary_urgency || 'within week';
+            let urgencyClass = 'urgency-week';
+            if (urgency.includes('immediate')) urgencyClass = 'urgency-immediate';
+            else if (urgency.includes('24 hours')) urgencyClass = 'urgency-24hours';
+            
+            container.innerHTML = `
+                <div class="result-header">
+                    <i class="fas fa-diagnoses result-icon"></i>
+                    <h2 class="result-title">Integrated Disease Prediction Results</h2>
+                </div>
+                
+                <div class="analysis-badge">
+                    ${prediction.analysis_type || 'Comprehensive Analysis'}
+                </div>
+                
+                <div class="diagnosis-card">
+                    <h3>Primary Diagnosis: ${prediction.primary_diagnosis}</h3>
+                    <div class="confidence-meter">
+                        <div class="confidence-fill" style="width: ${confidence}%"></div>
+                    </div>
+                    <p><strong>Confidence:</strong> ${confidence}%</p>
+                    <p><strong>Diagnostic Reasoning:</strong> ${prediction.diagnostic_reasoning}</p>
+                    
+                    ${hasImage ? `
+                        <div class="correlation-info">
+                            <h4><i class="fas fa-eye"></i> Image-Symptom Correlation</h4>
+                            <p>${prediction.image_symptom_correlation}</p>
+                        </div>
+                    ` : ''}
+                </div>
+                
+                ${prediction.alternative_diagnoses && prediction.alternative_diagnoses.length > 0 ? `
+                    <div class="diagnosis-card">
+                        <h4>Alternative Possibilities:</h4>
+                        ${prediction.alternative_diagnoses.map(alt => `
+                            <div style="margin: 15px 0; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                                <strong>${alt.disease}</strong> (${Math.round(alt.confidence * 100)}% confidence)
+                                <br><small>${alt.reasoning}</small>
+                            </div>
+                        `).join('')}
+                    </div>
+                ` : ''}
+                
+                <div class="treatment-section">
+                    <h4><i class="fas fa-medkit"></i> Treatment Recommendations</h4>
+                    
+                    <div class="urgency-badge ${urgencyClass}">
+                        <i class="fas fa-clock"></i> Veterinary Consultation: ${urgency}
+                    </div>
+                    
+                    <p><strong>Severity Assessment:</strong> ${prediction.severity_assessment}</p>
+                    
+                    <h5>Immediate Actions:</h5>
+                    <ul>
+                        ${prediction.treatment_recommendations.immediate_actions.map(action => `<li>${action}</li>`).join('')}
+                    </ul>
+                    
+                    <h5>Ongoing Treatment:</h5>
+                    <ul>
+                        ${prediction.treatment_recommendations.ongoing_treatment.map(treatment => `<li>${treatment}</li>`).join('')}
+                    </ul>
+                    
+                    <p><strong>Monitoring:</strong> ${prediction.treatment_recommendations.monitoring}</p>
+                    <p><strong>Prognosis:</strong> ${prediction.prognosis}</p>
+                    
+                    ${prediction.prevention_advice ? `
+                        <p><strong>Prevention Advice:</strong> ${prediction.prevention_advice}</p>
+                    ` : ''}
+                </div>
+                
+                <div class="alert alert-warning">
+                    <strong><i class="fas fa-exclamation-triangle"></i> Important Medical Disclaimer:</strong> 
+                    This integrated prediction combines ${hasImage ? 'visual analysis with' : ''} symptom assessment for informational purposes only. 
+                    Always consult with a qualified veterinarian for professional medical diagnosis and treatment decisions. 
+                    Do not delay seeking professional veterinary care, especially for severe symptoms.
+                </div>
+            `;
+            
+            container.style.display = 'block';
+            container.scrollIntoView({ behavior: 'smooth' });
+        }
+    </script>
+</body>
+</html>
