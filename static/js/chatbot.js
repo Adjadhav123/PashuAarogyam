@@ -1195,13 +1195,56 @@ class VeterinaryChatbot {
     }
 
     formatMessage(text) {
+        // First, escape HTML special characters to prevent XSS
+        text = text.replace(/&/g, '&amp;')
+                  .replace(/</g, '&lt;')
+                  .replace(/>/g, '&gt;')
+                  .replace(/"/g, '&quot;')
+                  .replace(/'/g, '&#39;');
+        
         // Convert markdown-like formatting
         text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
         text = text.replace(/\*(.*?)\*/g, '<em>$1</em>');
         text = text.replace(/`(.*?)`/g, '<code>$1</code>');
         
-        // Convert newlines to breaks
+        // Handle numbered lists (1. 2. 3. etc.)
+        text = text.replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>');
+        
+        // Handle bullet points (- or •)
+        text = text.replace(/^[-•]\s+(.+)$/gm, '<li>$1</li>');
+        
+        // Wrap consecutive list items in <ul> tags
+        text = text.replace(/(<li>.*<\/li>)/gs, function(match) {
+            return '<ul>' + match + '</ul>';
+        });
+        
+        // Fix nested ul tags (remove duplicate ul tags)
+        text = text.replace(/<\/ul>\s*<ul>/g, '');
+        
+        // Handle section headers (lines ending with :)
+        text = text.replace(/^([^:\n]+):$/gm, '<h4>$1:</h4>');
+        
+        // Handle treatment sections and symptoms
+        text = text.replace(/^(Common Treatments?|Symptoms?|Prevention|When to see|Treatment|Immediate Actions?|Ongoing Treatment|Monitoring):\s*$/gim, '<h4>$1:</h4>');
+        
+        // Convert double line breaks to paragraph breaks
+        text = text.replace(/\n\n+/g, '</p><p>');
+        
+        // Convert single line breaks to <br> tags
         text = text.replace(/\n/g, '<br>');
+        
+        // Wrap content in paragraphs if it doesn't start with a tag
+        if (!text.trim().startsWith('<')) {
+            text = '<p>' + text + '</p>';
+        }
+        
+        // Clean up empty paragraphs
+        text = text.replace(/<p>\s*<\/p>/g, '');
+        text = text.replace(/<p>\s*<br>\s*<\/p>/g, '');
+        
+        // Ensure proper paragraph structure around headers
+        text = text.replace(/<\/p><h4>/g, '</p><h4>');
+        text = text.replace(/<\/h4><p>/g, '</h4><p>');
         
         return text;
     }

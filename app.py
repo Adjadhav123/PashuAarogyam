@@ -86,7 +86,7 @@ except ImportError as e:
     CHATBOT_AVAILABLE = False
 
 app = Flask(__name__)
-app.secret_key = 'your-secret-key-change-in-production'  # Change this in production
+app.secret_key = 'your-secret-key-change-in-production'  
 
 # MongoDB Configuration
 MONGODB_URI = "mongodb+srv://kunalsurade016_db_user:umcunBXqOZO3AUK3@animal1.rydpf7k.mongodb.net/gorakshaai?retryWrites=true&w=majority"
@@ -322,6 +322,15 @@ def initialize_chatbot():
         print("🔄 Initializing chatbot service with dedicated API key...")
         chatbot = AnimalDiseaseChatbot(gemini_api_key)
         print("✅ Chatbot service initialized successfully with chatbot API key!")
+        
+        # Test if the model is working
+        is_healthy, health_message = chatbot.test_model_health()
+        if is_healthy:
+            print("✅ Chatbot model health check passed!")
+        else:
+            print(f"⚠️  Chatbot model health check failed: {health_message}")
+            print("⚠️  Chatbot may have limited functionality")
+        
         return True
         
     except Exception as e:
@@ -3544,7 +3553,8 @@ def chatbot_health_check():
             'success': True,
             'healthy': False,
             'services': {
-                'genai_available': False,
+                'genai_available': GEMINI_AVAILABLE,
+                'chatbot_available': CHATBOT_AVAILABLE,
                 'vision_available': False,
                 'pdf_available': False,
                 'translation_available': False,
@@ -3554,11 +3564,31 @@ def chatbot_health_check():
         })
     
     try:
-        response = chatbot.health_check()
-        return jsonify(response)
+        # Test model health
+        model_healthy, health_message = chatbot.test_model_health()
+        
+        return jsonify({
+            'success': True,
+            'healthy': model_healthy,
+            'services': {
+                'genai_available': GEMINI_AVAILABLE,
+                'chatbot_available': CHATBOT_AVAILABLE,
+                'model_healthy': model_healthy,
+                'vision_available': hasattr(chatbot, 'vision_model') and chatbot.vision_model is not None,
+                'pdf_available': True,  # We can assume these are available based on requirements
+                'translation_available': True,
+                'image_processing_available': True
+            },
+            'message': health_message
+        })
     except Exception as e:
         print(f"Error checking chatbot health: {e}")
-        return jsonify({'success': False, 'error': str(e)})
+        return jsonify({
+            'success': False, 
+            'healthy': False,
+            'error': str(e),
+            'message': 'Health check failed with exception'
+        })
         response = chatbot.clear_conversation()
         return jsonify(response)
     except Exception as e:

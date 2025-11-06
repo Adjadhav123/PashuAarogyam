@@ -377,6 +377,84 @@ body {
     color: white;
 }
 
+/* Enhanced formatting for structured text */
+.message-text h4 {
+    color: #2E8B57;
+    margin-top: 1rem;
+    margin-bottom: 0.5rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-bottom: 2px solid rgba(46, 139, 87, 0.2);
+    padding-bottom: 0.25rem;
+}
+
+.user-message .message-text h4 {
+    color: white;
+    border-bottom-color: rgba(255, 255, 255, 0.3);
+}
+
+.message-text ul {
+    margin: 0.75rem 0;
+    padding-left: 1.5rem;
+}
+
+.message-text ul li {
+    margin-bottom: 0.5rem;
+    line-height: 1.6;
+    position: relative;
+}
+
+.message-text ul li::marker {
+    color: #2E8B57;
+    font-weight: bold;
+}
+
+.user-message .message-text ul li::marker {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.message-text p {
+    margin-bottom: 0.75rem;
+    line-height: 1.6;
+}
+
+.message-text p:last-child {
+    margin-bottom: 0;
+}
+
+.message-text strong {
+    color: #2E8B57;
+    font-weight: 600;
+}
+
+.user-message .message-text strong {
+    color: white;
+    font-weight: 600;
+}
+
+.message-text em {
+    color: #3CB371;
+    font-style: italic;
+}
+
+.user-message .message-text em {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.message-text code {
+    background: rgba(46, 139, 87, 0.1);
+    color: #2E8B57;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9em;
+}
+
+.user-message .message-text code {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+}
+
 /* =================== CHAT INPUT AREA =================== */
 
 .chat-input-area {
@@ -1115,26 +1193,95 @@ input:checked + .slider:before {
 }
 
 .message-text {
-    line-height: 1.6;
+    line-height: 1.7;
 }
 
 .message-text h3 {
     color: #2E8B57;
     margin-bottom: 1rem;
-    font-size: 1.2rem;
+    font-size: 1.3rem;
 }
 
 .user-message .message-text h3 {
     color: white;
 }
 
+/* Enhanced formatting for structured text (mobile duplicate) */
+.message-text h4 {
+    color: #2E8B57;
+    margin-top: 1rem;
+    margin-bottom: 0.5rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-bottom: 2px solid rgba(46, 139, 87, 0.2);
+    padding-bottom: 0.25rem;
+}
+
+.user-message .message-text h4 {
+    color: white;
+    border-bottom-color: rgba(255, 255, 255, 0.3);
+}
+
 .message-text ul {
-    margin: 1rem 0;
+    margin: 0.75rem 0;
     padding-left: 1.5rem;
 }
 
 .message-text ul li {
     margin-bottom: 0.5rem;
+    line-height: 1.6;
+    position: relative;
+}
+
+.message-text ul li::marker {
+    color: #2E8B57;
+    font-weight: bold;
+}
+
+.user-message .message-text ul li::marker {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.message-text p {
+    margin-bottom: 0.75rem;
+    line-height: 1.6;
+}
+
+.message-text p:last-child {
+    margin-bottom: 0;
+}
+
+.message-text strong {
+    color: #2E8B57;
+    font-weight: 600;
+}
+
+.user-message .message-text strong {
+    color: white;
+    font-weight: 600;
+}
+
+.message-text em {
+    color: #3CB371;
+    font-style: italic;
+}
+
+.user-message .message-text em {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.message-text code {
+    background: rgba(46, 139, 87, 0.1);
+    color: #2E8B57;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9em;
+}
+
+.user-message .message-text code {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
 }
 
 .message-text ul li i {

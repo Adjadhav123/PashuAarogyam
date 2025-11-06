@@ -105,7 +105,10 @@ class AnimalDiseaseChatbot:
             self.rate_limiter = GeminiRateLimiter()  # Add rate limiter
             
             # Initialize services step by step
-            self._initialize_genai()
+            gemini_success = self._initialize_genai()
+            
+            if not gemini_success:
+                logger.warning("⚠️  Gemini AI initialization failed, but chatbot will continue with limited functionality")
             
             logger.info("✅ Animal Disease Chatbot initialized successfully!")
             
@@ -183,11 +186,13 @@ class AnimalDiseaseChatbot:
                 logger.warning("⚠️  Google Generative AI not available")
                 return False
                 
-            # Temporarily disable to avoid rate limits
-            logger.warning("⚠️  Gemini AI temporarily disabled to avoid rate limits")
-            return False
+            if not self.api_key or self.api_key.strip() == "":
+                logger.error("❌ API key is empty or not provided")
+                return False
                 
-            # genai.configure(api_key=self.api_key)
+            # Configure the API key
+            genai.configure(api_key=self.api_key)
+            logger.info("✅ Gemini AI configured with API key")
             
             # Try to initialize text model with newer model
             try:
@@ -229,6 +234,25 @@ class AnimalDiseaseChatbot:
             logger.error(f"❌ Failed to configure Generative AI: {e}")
             return False
     
+    def test_model_health(self):
+        """Test if the model is working properly"""
+        try:
+            if not self.model:
+                return False, "Model not initialized"
+                
+            # Simple test query
+            test_response = self.model.generate_content("Test")
+            if test_response and test_response.text:
+                logger.info("✅ Model health check passed")
+                return True, "Model is healthy"
+            else:
+                logger.warning("⚠️  Model health check failed - no response")
+                return False, "Model not responding"
+                
+        except Exception as e:
+            logger.error(f"❌ Model health check failed: {e}")
+            return False, f"Model health check error: {str(e)}"
+    
     def process_text_query(self, user_input, language='en', session_key=None):
         """Process text-based queries about animal diseases with session context"""
         try:
@@ -252,9 +276,10 @@ class AnimalDiseaseChatbot:
             
             # Check if model is available
             if not self.model:
+                logger.error("❌ AI model not available - check API key and network connection")
                 return {
                     'success': False,
-                    'error': 'AI model not available',
+                    'error': 'AI model temporarily unavailable - please try again in a few moments',
                     'fallback_response': self._get_fallback_response(user_input),
                     'type': 'text'
                 }
