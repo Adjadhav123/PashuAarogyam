@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Quota Information - PashuAarogyam</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .quota-info {
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 2rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .status-card {
+            background: white;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            border-radius: 6px;
+            border-left: 4px solid #2E8B57;
+        }
+        .status-card.warning {
+            border-left-color: #ff9800;
+        }
+        .status-card.error {
+            border-left-color: #f44336;
+        }
+        .tips {
+            background: #e3f2fd;
+            padding: 1.5rem;
+            border-radius: 6px;
+            margin: 1rem 0;
+        }
+        .tip-item {
+            margin: 0.5rem 0;
+            padding-left: 1rem;
+            position: relative;
+        }
+        .tip-item::before {
+            content: "💡";
+            position: absolute;
+            left: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="quota-info">
+            <h1>🐄 PashuAarogyam - API Usage Information</h1>
+            
+            <div class="status-card">
+                <h3>Current Status</h3>
+                <p id="current-status">Checking API status...</p>
+            </div>
+            
+            <div class="status-card warning">
+                <h3>About Google Gemini API Limits</h3>
+                <p>Our AI chatbot and some disease detection features use Google's Gemini AI, which has usage limits:</p>
+                <ul>
+                    <li><strong>Free Tier:</strong> 50 requests per day</li>
+                    <li><strong>Rate Limit:</strong> Maximum 2 requests per minute</li>
+                    <li><strong>Reset Time:</strong> Daily quota resets at midnight UTC</li>
+                </ul>
+            </div>
+            
+            <div class="tips">
+                <h3>What You Can Do When Quota is Exceeded</h3>
+                <div class="tip-item">Use our offline disease detection models for cats, dogs, and cattle</div>
+                <div class="tip-item">Consult directly with our veterinarians through the consultation system</div>
+                <div class="tip-item">Browse our extensive disease database and treatment information</div>
+                <div class="tip-item">Schedule consultations for the next day when quota resets</div>
+                <div class="tip-item">Consider upgrading to Google's paid tier for unlimited access</div>
+            </div>
+            
+            <div class="status-card">
+                <h3>Alternative Features Available</h3>
+                <ul>
+                    <li><a href="{{ url_for('disease_detection') }}">🔬 Disease Detection (Works Offline)</a></li>
+                    <li><a href="{{ url_for('consultation_form') }}">👨‍⚕️ Veterinarian Consultation</a></li>
+                    <li><a href="{{ url_for('dashboard') }}">📊 User Dashboard</a></li>
+                    <li><a href="{{ url_for('index') }}">🏠 Browse Resources</a></li>
+                </ul>
+            </div>
+            
+            <div class="status-card">
+                <h3>Need Immediate Help?</h3>
+                <p>If you have an urgent animal health concern:</p>
+                <ul>
+                    <li>Use our <a href="{{ url_for('consultation_form') }}">emergency consultation form</a></li>
+                    <li>Contact your local veterinarian directly</li>
+                    <li>Call animal emergency services in your area</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Check quota status on page load
+        async function checkQuotaStatus() {
+            try {
+                const response = await fetch('/api/quota-status');
+                const data = await response.json();
+                
+                const statusElement = document.getElementById('current-status');
+                
+                if (data.quota_exceeded) {
+                    statusElement.innerHTML = `
+                        <strong>⚠️ Daily quota exceeded</strong><br>
+                        Disease Detection: ${data.disease_detection_available ? '✅ Available' : '❌ Limited'}<br>
+                        AI Chatbot: ${data.chatbot_available ? '✅ Available' : '❌ Limited'}<br>
+                        ${data.reset_time ? `Quota resets: ${new Date(data.reset_time * 1000).toLocaleString()}` : ''}
+                    `;
+                } else {
+                    statusElement.innerHTML = `
+                        <strong>✅ All services operational</strong><br>
+                        Disease Detection: ✅ Available<br>
+                        AI Chatbot: ✅ Available
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('current-status').innerHTML = 
+                    '<strong>❓ Unable to check status</strong><br>Please refresh the page or try again later.';
+            }
+        }
+        
+        // Check status when page loads
+        checkQuotaStatus();
+        
+        // Refresh status every 30 seconds
+        setInterval(checkQuotaStatus, 30000);
+    </script>
+</body>
+</html>

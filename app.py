@@ -36,9 +36,9 @@ except ImportError as e:
     print(f"⚠️  Google Generative AI import failed: {e}")
     GEMINI_AVAILABLE = False
 
-# Configure Gemini API with dual keys for load balancing
-GEMINI_API_KEY_DISEASE = "AIzaSyBwVTmnjb8AJDMTlWfhs5KBenLq8kzWzr0"  # For disease detection
-GEMINI_API_KEY_CHATBOT = "AIzaSyAS1i1N6qAU-g3g8WYPXdz4N-sdkxOONqY"  # For chatbot
+# Configure Gemini API with new working key
+GEMINI_API_KEY_DISEASE = "AIzaSyDRXXiS-8KWyADGm18IW16Iy3w2sbDmdbg"  # New working API key
+GEMINI_API_KEY_CHATBOT = "AIzaSyDRXXiS-8KWyADGm18IW16Iy3w2sbDmdbg"  # Same key for both services
 
 # Re-enable Gemini with dual API system
 if GEMINI_AVAILABLE:
@@ -180,17 +180,28 @@ def initialize_mongodb():
         messages_collection = None
         return False
 
-# Rate limiting for Gemini API - Relaxed with dual API keys
+# Enhanced Rate limiting for Gemini API with quota management
 class GeminiRateLimiter:
     def __init__(self):
         self.last_call_time = 0
-        self.min_interval = 0.5  # Reduced from 1 second to 0.5 seconds with dual APIs
+        self.min_interval = 1.0  # More reasonable 1 second between calls with fresh key
         self.rate_limit_until = 0  # Timestamp until when we're rate limited
         self.consecutive_failures = 0
+        self.quota_exceeded = False  # Track if quota is exceeded for the day
+        self.quota_reset_time = 0  # When quota should reset (next day)
         
     def wait_if_needed(self):
         """Wait if we need to respect rate limits"""
         current_time = time.time()
+        
+        # Check if quota is exceeded and we need to wait until reset
+        if self.quota_exceeded and current_time < self.quota_reset_time:
+            return True  # Don't make any calls if quota exceeded
+        elif self.quota_exceeded and current_time >= self.quota_reset_time:
+            # Reset quota status if it's past reset time
+            self.quota_exceeded = False
+            self.consecutive_failures = 0
+            print("✅ Daily quota should be reset, attempting to resume API calls...")
         
         # Check if we're still in rate limit period
         if current_time < self.rate_limit_until:
@@ -208,15 +219,27 @@ class GeminiRateLimiter:
         self.last_call_time = time.time()
         return False
         
-    def handle_rate_limit_error(self):
-        """Handle 429 rate limit error - Reduced wait time with dual APIs"""
+    def handle_rate_limit_error(self, error_message=""):
+        """Handle 429 rate limit error with quota detection"""
         self.consecutive_failures += 1
-        base_wait = min(30, 1.5 ** self.consecutive_failures)  # Reduced exponential backoff
-        jitter = random.uniform(0.8, 1.2)  # Reduced jitter
+        
+        # Check if this is a quota exceeded error
+        if "quota" in error_message.lower() or "50" in error_message:
+            self.quota_exceeded = True
+            # Set reset time to next day (24 hours from now)
+            from datetime import datetime, timedelta
+            next_day = datetime.now() + timedelta(days=1)
+            self.quota_reset_time = next_day.replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
+            print(f"🚫 Daily quota exceeded. API calls suspended until {datetime.fromtimestamp(self.quota_reset_time)}")
+            return 24 * 3600  # Return 24 hours in seconds
+        
+        # Regular rate limiting - more conservative
+        base_wait = min(60, 2.0 ** min(self.consecutive_failures, 4))  # Reduced backoff
+        jitter = random.uniform(0.8, 1.2)
         wait_time = base_wait * jitter
         
         self.rate_limit_until = time.time() + wait_time
-        self.min_interval = min(3, self.min_interval * 1.2)  # Slower increase
+        self.min_interval = min(5, self.min_interval * 1.2)  # Gradual increase
         
         print(f"⚠️ Rate limit hit. Backing off for {wait_time:.1f} seconds...")
         return wait_time
@@ -224,18 +247,28 @@ class GeminiRateLimiter:
     def reset_on_success(self):
         """Reset failure count on successful call"""
         self.consecutive_failures = 0
-        self.min_interval = max(0.5, self.min_interval * 0.95)  # Gradually reduce interval
+        self.min_interval = max(1.0, self.min_interval * 0.9)  # Gradually reduce interval but keep minimum at 1s
+        
+    def is_quota_exceeded(self):
+        """Check if quota is currently exceeded"""
+        current_time = time.time()
+        if self.quota_exceeded and current_time >= self.quota_reset_time:
+            self.quota_exceeded = False
+        return self.quota_exceeded
 
 # Global rate limiter instance
 gemini_rate_limiter = GeminiRateLimiter()
 
 def call_gemini_with_retry(model_name, prompt, image_parts=None, max_retries=2, api_key=None):
     """
-    Call Gemini API with proper error handling, rate limiting, and retries
-    Reduced retries since we have dual API system for load balancing
+    Call Gemini API with proper error handling, rate limiting, and quota management
     """
     if not GEMINI_AVAILABLE:
         return None, "Gemini AI is not available"
+    
+    # Check if quota is exceeded before making any calls
+    if gemini_rate_limiter.is_quota_exceeded():
+        return None, "Daily API quota exceeded. Please try again tomorrow or upgrade your plan."
     
     # Use provided API key or default to disease detection key
     if api_key is None:
@@ -243,8 +276,10 @@ def call_gemini_with_retry(model_name, prompt, image_parts=None, max_retries=2, 
         
     for attempt in range(max_retries):
         try:
-            # Wait if rate limited
-            was_rate_limited = gemini_rate_limiter.wait_if_needed()
+            # Wait if rate limited or quota exceeded
+            should_skip = gemini_rate_limiter.wait_if_needed()
+            if should_skip and gemini_rate_limiter.is_quota_exceeded():
+                return None, "Daily API quota exceeded. Please try again tomorrow."
             
             # Configure with the specific API key for this request
             genai.configure(api_key=api_key)
@@ -268,14 +303,20 @@ def call_gemini_with_retry(model_name, prompt, image_parts=None, max_retries=2, 
             
             # Handle different types of errors
             if "429" in error_str or "resource exhausted" in error_str or "quota" in error_str:
-                wait_time = gemini_rate_limiter.handle_rate_limit_error()
+                wait_time = gemini_rate_limiter.handle_rate_limit_error(str(e))
+                
+                # If quota exceeded, don't retry - return helpful message
+                if gemini_rate_limiter.is_quota_exceeded():
+                    return None, ("Daily API quota exceeded. The free tier allows 50 requests per day. "
+                                "Please try again tomorrow or consider upgrading your plan for higher limits.")
                 
                 if attempt < max_retries - 1:
                     print(f"🔄 Retrying after rate limit (attempt {attempt + 1}/{max_retries})...")
-                    time.sleep(wait_time)
+                    time.sleep(min(wait_time, 30))  # Cap wait time for retries
                     continue
                 else:
-                    return None, f"Rate limit exceeded after {max_retries} attempts. Please try again later."
+                    return None, ("API rate limit exceeded. Please wait a few minutes and try again, "
+                                "or use our offline disease detection features.")
                     
             elif "network" in error_str or "connection" in error_str or "timeout" in error_str:
                 if attempt < max_retries - 1:
@@ -284,10 +325,10 @@ def call_gemini_with_retry(model_name, prompt, image_parts=None, max_retries=2, 
                     time.sleep(wait_time)
                     continue
                 else:
-                    return None, f"Network error after {max_retries} attempts. Please check your connection."
+                    return None, "Network error. Please check your connection and try again."
                     
             elif "invalid" in error_str or "permission" in error_str:
-                return None, f"API error: {str(e)}"
+                return None, f"API configuration error: {str(e)}"
                 
             else:
                 if attempt < max_retries - 1:
@@ -304,7 +345,7 @@ def call_gemini_with_retry(model_name, prompt, image_parts=None, max_retries=2, 
 chatbot = None
 
 def initialize_chatbot():
-    """Initialize chatbot service with better error handling"""
+    """Initialize chatbot service with graceful quota handling"""
     global chatbot
     
     try:
@@ -323,13 +364,23 @@ def initialize_chatbot():
         chatbot = AnimalDiseaseChatbot(gemini_api_key)
         print("✅ Chatbot service initialized successfully with chatbot API key!")
         
-        # Test if the model is working
-        is_healthy, health_message = chatbot.test_model_health()
-        if is_healthy:
-            print("✅ Chatbot model health check passed!")
-        else:
-            print(f"⚠️  Chatbot model health check failed: {health_message}")
-            print("⚠️  Chatbot may have limited functionality")
+        # Test if the model is working - but don't fail initialization if quota exceeded
+        try:
+            is_healthy, health_message = chatbot.test_model_health()
+            if is_healthy:
+                print("✅ Chatbot model health check passed!")
+            else:
+                print(f"⚠️  Chatbot model health check failed: {health_message}")
+                
+                # Check if it's a quota issue
+                if "quota" in health_message.lower() or "429" in health_message:
+                    print("📊 Quota exceeded during health check - this is normal for free tier users")
+                    print("💡 Chatbot will still work when quota resets or when users make requests")
+                else:
+                    print("⚠️  Chatbot may have limited functionality")
+        except Exception as health_error:
+            print(f"⚠️  Health check encountered an error: {health_error}")
+            print("🔄 Chatbot service will still be available for user requests")
         
         return True
         
@@ -340,10 +391,54 @@ def initialize_chatbot():
         chatbot = None
         return False
 
+@app.route('/quota-info')
+def quota_info():
+    """Show quota information and alternative features"""
+    return render_template('quota_info.html')
+
+@app.route('/api/quota-status')
+def get_quota_status():
+    """Get current quota status for the API"""
+    try:
+        # Check both rate limiters
+        app_quota_exceeded = gemini_rate_limiter.is_quota_exceeded()
+        chatbot_quota_exceeded = False
+        
+        if chatbot and hasattr(chatbot, 'rate_limiter'):
+            chatbot_quota_exceeded = chatbot.rate_limiter.is_quota_exceeded()
+        
+        status = {
+            'quota_exceeded': app_quota_exceeded or chatbot_quota_exceeded,
+            'disease_detection_available': not app_quota_exceeded,
+            'chatbot_available': not chatbot_quota_exceeded,
+            'reset_time': None
+        }
+        
+        # Get reset time if quota exceeded
+        if app_quota_exceeded:
+            status['reset_time'] = gemini_rate_limiter.quota_reset_time
+        elif chatbot_quota_exceeded and hasattr(chatbot.rate_limiter, 'quota_reset_time'):
+            status['reset_time'] = chatbot.rate_limiter.quota_reset_time
+        
+        return jsonify(status)
+        
+    except Exception as e:
+        return jsonify({
+            'quota_exceeded': False,
+            'disease_detection_available': True,
+            'chatbot_available': True,
+            'error': str(e)
+        }), 500
+
 def get_chatbot_status():
     """Check if chatbot is available"""
     if chatbot is None:
         return False, "Chatbot not initialized"
+    
+    # Check quota status
+    if hasattr(chatbot, 'rate_limiter') and chatbot.rate_limiter.is_quota_exceeded():
+        return False, "Chatbot quota exceeded"
+    
     return True, "Chatbot ready"
 
 def get_db_status():
@@ -5014,368 +5109,6 @@ def get_user_consultation_messages():
     except Exception as e:
         print(f"Error getting user consultation messages: {e}")
         return jsonify({'success': False, 'message': 'Failed to load messages'}), 500
-
-
-@app.route('/specific_prediction')
-def specific_prediction():
-    """Route for specific disease prediction page"""
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
-    return render_template('specific_prediction.html')
-
-
-@app.route('/predict/specific_disease', methods=['POST'])
-def predict_specific_disease():
-    """Generate specific disease prediction based on detailed information"""
-    if 'user_id' not in session:
-        return jsonify({'success': False, 'error': 'Authentication required'}), 401
-    
-    try:
-        # Extract form data
-        animal_type = request.form.get('animal_type', '').strip()
-        animal_age = request.form.get('animal_age', '').strip()
-        animal_weight = request.form.get('animal_weight', '').strip()
-        animal_breed = request.form.get('animal_breed', '').strip()
-        symptoms = request.form.getlist('symptoms[]')
-        additional_symptoms = request.form.get('additional_symptoms', '').strip()
-        symptom_duration = request.form.get('symptom_duration', '').strip()
-        severity = request.form.get('severity', 'moderate').strip()
-        recent_changes = request.form.get('recent_changes', '').strip()
-        previous_treatment = request.form.get('previous_treatment', '').strip()
-        
-        # Validate required fields
-        if not animal_type:
-            return jsonify({'success': False, 'error': 'Animal type is required'}), 400
-        
-        if not symptoms and not additional_symptoms:
-            return jsonify({'success': False, 'error': 'At least one symptom must be provided'}), 400
-        
-        # Prepare comprehensive animal information
-        animal_info = {
-            'type': animal_type,
-            'age': animal_age,
-            'weight': animal_weight,
-            'breed': animal_breed
-        }
-        
-        # Combine all symptoms
-        all_symptoms = symptoms + ([additional_symptoms] if additional_symptoms else [])
-        
-        # Get specific disease prediction
-        prediction = generate_specific_disease_prediction(
-            animal_info=animal_info,
-            symptoms=all_symptoms,
-            duration=symptom_duration,
-            severity=severity,
-            recent_changes=recent_changes,
-            previous_treatment=previous_treatment
-        )
-        
-        # Store prediction in database
-        try:
-            user_id = session['user_id']
-            prediction_data = {
-                'user_id': user_id,
-                'animal_type': animal_type,
-                'animal_info': animal_info,
-                'symptoms': all_symptoms,
-                'symptom_duration': symptom_duration,
-                'severity': severity,
-                'recent_changes': recent_changes,
-                'previous_treatment': previous_treatment,
-                'prediction': prediction,
-                'timestamp': datetime.now(),
-                'prediction_type': 'specific_disease'
-            }
-            
-            predictions_collection.insert_one(prediction_data)
-            print(f"✅ Specific disease prediction saved to database")
-            
-        except Exception as db_error:
-            print(f"⚠️  Database save error: {db_error}")
-            # Continue even if database save fails
-        
-        return jsonify({
-            'success': True,
-            'prediction': prediction
-        })
-        
-    except Exception as e:
-        print(f"❌ Error in specific disease prediction: {e}")
-        return jsonify({
-            'success': False,
-            'error': f'Prediction failed: {str(e)}'
-        }), 500
-
-
-def generate_specific_disease_prediction(animal_info, symptoms, duration, severity, recent_changes, previous_treatment):
-    """Generate specific disease prediction using Gemini AI"""
-    
-    try:
-        # Prepare detailed prompt for specific disease prediction
-        prompt = f"""You are a veterinary expert providing specific disease predictions for animal health.
-
-Animal Information:
-- Type: {animal_info['type']}
-- Age: {animal_info.get('age', 'Not specified')}
-- Weight: {animal_info.get('weight', 'Not specified')}
-- Breed: {animal_info.get('breed', 'Not specified')}
-
-Clinical Presentation:
-- Observed Symptoms: {', '.join(symptoms)}
-- Duration: {duration or 'Not specified'}
-- Severity: {severity}
-- Recent Changes: {recent_changes or 'None reported'}
-- Previous Treatment: {previous_treatment or 'None reported'}
-
-Please provide a specific disease prediction in JSON format with the following structure:
-{{
-    "disease": "Most likely specific disease name",
-    "confidence": 0.85,
-    "description": "Detailed description of the disease and why it matches the symptoms",
-    "alternative_diseases": [
-        {{
-            "disease": "Alternative disease name",
-            "confidence": 0.65,
-            "description": "Brief description"
-        }}
-    ],
-    "treatment": {{
-        "immediate_actions": ["Action 1", "Action 2", "Action 3"],
-        "treatment_plan": ["Treatment step 1", "Treatment step 2", "Treatment step 3"],
-        "vet_consultation": "When to consult a veterinarian"
-    }},
-    "risk_factors": ["Risk factor 1", "Risk factor 2"],
-    "prognosis": "Expected outcome with proper treatment"
-}}
-
-Focus on providing the most specific and accurate disease diagnosis possible based on the symptoms and animal information provided."""
-
-        if GEMINI_AVAILABLE:
-            # Use the robust API call function with disease detection API key
-            response_text, error = call_gemini_with_retry('gemini-2.0-flash-exp', prompt, api_key=GEMINI_API_KEY_DISEASE)
-            
-            if error:
-                print(f"⚠️  Gemini AI error: {error}")
-                # Fallback to rule-based prediction
-                return generate_fallback_specific_prediction(animal_info, symptoms, severity)
-                
-            if response_text:
-                # Try to parse as JSON first
-                try:
-                    prediction = json.loads(response_text)
-                    return prediction
-                except json.JSONDecodeError:
-                    # If JSON parsing fails, extract key information from text
-                    return parse_specific_prediction_text(response_text, animal_info['type'])
-            else:
-                return generate_fallback_specific_prediction(animal_info, symptoms, severity)
-                
-        else:
-            # Fallback if Gemini is not available
-            return generate_fallback_specific_prediction(animal_info, symptoms, severity)
-            
-    except Exception as e:
-        print(f"❌ Error in specific disease prediction generation: {e}")
-        return generate_fallback_specific_prediction(animal_info, symptoms, severity)
-
-
-def parse_specific_prediction_text(text_response, animal_type):
-    """Parse text response when JSON parsing fails"""
-    try:
-        # Extract disease name
-        disease_match = None
-        lines = text_response.split('\n')
-        
-        for line in lines:
-            if 'disease' in line.lower() or 'diagnosis' in line.lower():
-                # Extract likely disease name
-                if ':' in line:
-                    disease_match = line.split(':', 1)[1].strip()
-                    break
-        
-        if not disease_match:
-            disease_match = f"Suspected {animal_type.title()} Health Issue"
-        
-        return {
-            'disease': disease_match,
-            'confidence': 0.75,
-            'description': "Based on the provided symptoms and clinical information, this appears to be the most likely condition affecting your animal.",
-            'alternative_diseases': [
-                {
-                    'disease': 'Secondary Infection',
-                    'confidence': 0.60,
-                    'description': 'May be a complicating factor'
-                }
-            ],
-            'treatment': {
-                'immediate_actions': [
-                    'Monitor the animal closely',
-                    'Ensure access to clean water and food',
-                    'Provide comfortable environment',
-                    'Note any changes in condition'
-                ],
-                'treatment_plan': [
-                    'Consult veterinarian for proper diagnosis',
-                    'Follow professional treatment recommendations',
-                    'Implement supportive care measures',
-                    'Monitor treatment response'
-                ],
-                'vet_consultation': 'Professional veterinary consultation recommended for accurate diagnosis and treatment'
-            },
-            'risk_factors': [
-                'Animal age and health status',
-                'Environmental factors',
-                'Previous medical history'
-            ],
-            'prognosis': 'Good with proper veterinary care and early intervention'
-        }
-        
-    except Exception as e:
-        print(f"Error parsing prediction text: {e}")
-        return generate_fallback_specific_prediction(
-            {'type': animal_type}, 
-            ['general symptoms'], 
-            'moderate'
-        )
-
-
-def generate_fallback_specific_prediction(animal_info, symptoms, severity):
-    """Generate fallback prediction when AI is not available"""
-    
-    # Disease patterns for different animals
-    disease_patterns = {
-        'cattle': {
-            'respiratory': {
-                'symptoms': ['coughing', 'difficulty breathing', 'nasal discharge', 'fever'],
-                'diseases': [
-                    {'name': 'Bovine Respiratory Disease (BRD)', 'confidence': 0.85},
-                    {'name': 'Pneumonia', 'confidence': 0.75}
-                ]
-            },
-            'digestive': {
-                'symptoms': ['diarrhea', 'loss of appetite', 'bloating', 'constipation'],
-                'diseases': [
-                    {'name': 'Rumen Acidosis', 'confidence': 0.80},
-                    {'name': 'Intestinal Parasites', 'confidence': 0.70}
-                ]
-            },
-            'reproductive': {
-                'symptoms': ['reduced milk production', 'abnormal discharge', 'difficulty breeding'],
-                'diseases': [
-                    {'name': 'Mastitis', 'confidence': 0.85},
-                    {'name': 'Reproductive Disorders', 'confidence': 0.75}
-                ]
-            }
-        },
-        'dog': {
-            'gastrointestinal': {
-                'symptoms': ['vomiting', 'diarrhea', 'loss of appetite', 'lethargy'],
-                'diseases': [
-                    {'name': 'Gastroenteritis', 'confidence': 0.80},
-                    {'name': 'Dietary Indiscretion', 'confidence': 0.70}
-                ]
-            },
-            'skin': {
-                'symptoms': ['scratching', 'hair loss', 'skin irritation', 'red patches'],
-                'diseases': [
-                    {'name': 'Allergic Dermatitis', 'confidence': 0.85},
-                    {'name': 'Fungal Infection', 'confidence': 0.70}
-                ]
-            },
-            'urinary': {
-                'symptoms': ['frequent urination', 'difficulty urinating', 'blood in urine'],
-                'diseases': [
-                    {'name': 'Urinary Tract Infection', 'confidence': 0.85},
-                    {'name': 'Bladder Stones', 'confidence': 0.70}
-                ]
-            }
-        },
-        'cat': {
-            'respiratory': {
-                'symptoms': ['sneezing', 'nasal discharge', 'eye discharge', 'coughing'],
-                'diseases': [
-                    {'name': 'Upper Respiratory Infection', 'confidence': 0.85},
-                    {'name': 'Feline Herpesvirus', 'confidence': 0.75}
-                ]
-            },
-            'urinary': {
-                'symptoms': ['frequent urination', 'straining to urinate', 'blood in urine'],
-                'diseases': [
-                    {'name': 'Feline Lower Urinary Tract Disease', 'confidence': 0.85},
-                    {'name': 'Urinary Blockage', 'confidence': 0.80}
-                ]
-            }
-        }
-    }
-    
-    # Convert symptoms to lowercase for matching
-    symptom_text = ' '.join(symptoms).lower()
-    
-    # Find matching disease patterns
-    animal_patterns = disease_patterns.get(animal_info['type'], {})
-    best_match = None
-    best_score = 0
-    
-    for category, pattern in animal_patterns.items():
-        score = sum(1 for s in pattern['symptoms'] if s in symptom_text)
-        if score > best_score:
-            best_score = score
-            best_match = pattern['diseases'][0]
-    
-    if not best_match:
-        # Generic fallback
-        best_match = {
-            'name': f'General {animal_info["type"].title()} Health Issue',
-            'confidence': 0.60
-        }
-    
-    # Adjust confidence based on severity
-    confidence = best_match['confidence']
-    if severity == 'severe':
-        confidence = min(0.95, confidence + 0.10)
-    elif severity == 'mild':
-        confidence = max(0.50, confidence - 0.10)
-    
-    return {
-        'disease': best_match['name'],
-        'confidence': confidence,
-        'description': f"Based on the symptoms observed in your {animal_info['type']}, this appears to be the most likely condition. The symptoms align with typical presentations of this disease.",
-        'alternative_diseases': [
-            {
-                'disease': 'Secondary Bacterial Infection',
-                'confidence': 0.65,
-                'description': 'Could be a complicating factor'
-            },
-            {
-                'disease': 'Nutritional Deficiency',
-                'confidence': 0.55,
-                'description': 'May contribute to symptoms'
-            }
-        ],
-        'treatment': {
-            'immediate_actions': [
-                'Ensure the animal has access to clean, fresh water',
-                'Provide a quiet, comfortable environment',
-                'Monitor symptoms closely for any changes',
-                'Isolate from other animals if infectious disease is suspected'
-            ],
-            'treatment_plan': [
-                'Consult with a qualified veterinarian for proper diagnosis',
-                'Follow prescribed medication regimen if provided',
-                'Implement supportive care measures',
-                'Monitor response to treatment and adjust as needed'
-            ],
-            'vet_consultation': 'Immediate veterinary consultation is recommended, especially if symptoms worsen or the animal shows signs of distress.'
-        },
-        'risk_factors': [
-            'Age and overall health status',
-            'Environmental conditions',
-            'Nutrition and diet quality',
-            'Previous medical history'
-        ],
-        'prognosis': 'With proper veterinary care and treatment, most animals recover well. Early intervention improves outcomes significantly.'
-    }
 
 
 if __name__ == '__main__':

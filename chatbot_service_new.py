@@ -45,17 +45,28 @@ except ImportError as e:
     logger.error(f"❌ Translation not available: {e}")
     TRANSLATION_AVAILABLE = False
 
-# Rate limiting for Gemini API - Relaxed for dedicated chatbot API
+# Enhanced Rate limiting for Gemini API with quota management
 class GeminiRateLimiter:
     def __init__(self):
         self.last_call_time = 0
-        self.min_interval = 0.3  # Reduced for chatbot with dedicated API
+        self.min_interval = 1.0  # More reasonable 1 second minimum between calls with fresh key
         self.rate_limit_until = 0  # Timestamp until when we're rate limited
         self.consecutive_failures = 0
+        self.quota_exceeded = False  # Track if quota is exceeded for the day
+        self.quota_reset_time = 0  # When quota should reset (next day)
         
     def wait_if_needed(self):
         """Wait if we need to respect rate limits"""
         current_time = time.time()
+        
+        # Check if quota is exceeded and we need to wait until reset
+        if self.quota_exceeded and current_time < self.quota_reset_time:
+            return True  # Don't make any calls if quota exceeded
+        elif self.quota_exceeded and current_time >= self.quota_reset_time:
+            # Reset quota status if it's past reset time
+            self.quota_exceeded = False
+            self.consecutive_failures = 0
+            logger.info("✅ Daily quota should be reset, attempting to resume API calls...")
         
         # Check if we're still in rate limit period
         if current_time < self.rate_limit_until:
@@ -73,15 +84,27 @@ class GeminiRateLimiter:
         self.last_call_time = time.time()
         return False
         
-    def handle_rate_limit_error(self):
-        """Handle 429 rate limit error - Reduced wait time for chatbot"""
+    def handle_rate_limit_error(self, error_message=""):
+        """Handle 429 rate limit error with quota detection"""
         self.consecutive_failures += 1
-        base_wait = min(20, 1.3 ** self.consecutive_failures)  # Even more reduced
-        jitter = random.uniform(0.9, 1.1)  # Minimal jitter
+        
+        # Check if this is a quota exceeded error
+        if "quota" in error_message.lower() or "50" in error_message:
+            self.quota_exceeded = True
+            # Set reset time to next day (24 hours from now)
+            from datetime import datetime, timedelta
+            next_day = datetime.now() + timedelta(days=1)
+            self.quota_reset_time = next_day.replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
+            logger.warning(f"🚫 Daily quota exceeded. API calls suspended until {datetime.fromtimestamp(self.quota_reset_time)}")
+            return 24 * 3600  # Return 24 hours in seconds
+        
+        # Regular rate limiting - more reasonable backoff
+        base_wait = min(30, 1.8 ** self.consecutive_failures)  # Reduced exponential backoff
+        jitter = random.uniform(0.8, 1.2)  # Add some randomness
         wait_time = base_wait * jitter
         
         self.rate_limit_until = time.time() + wait_time
-        self.min_interval = min(2, self.min_interval * 1.1)  # Minimal increase
+        self.min_interval = min(3, self.min_interval * 1.2)  # Gradual increase
         
         logger.warning(f"⚠️ Rate limit hit. Backing off for {wait_time:.1f} seconds...")
         return wait_time
@@ -89,7 +112,14 @@ class GeminiRateLimiter:
     def reset_on_success(self):
         """Reset failure count on successful call"""
         self.consecutive_failures = 0
-        self.min_interval = max(0.3, self.min_interval * 0.97)  # Gradually reduce interval
+        self.min_interval = max(1.0, self.min_interval * 0.9)  # Gradually reduce interval but keep minimum at 1s
+        
+    def is_quota_exceeded(self):
+        """Check if quota is currently exceeded"""
+        current_time = time.time()
+        if self.quota_exceeded and current_time >= self.quota_reset_time:
+            self.quota_exceeded = False
+        return self.quota_exceeded
 
 class AnimalDiseaseChatbot:
     def __init__(self, api_key):
@@ -117,18 +147,29 @@ class AnimalDiseaseChatbot:
             logger.error(traceback.format_exc())
             # Don't raise exception, allow degraded functionality
     
-    def _call_gemini_with_retry(self, model, prompt, image=None, max_retries=2):
+    def _call_gemini_with_retry(self, model, prompt, image=None, max_retries=3):
         """
-        Call Gemini API with proper error handling, rate limiting, and retries
-        Reduced retries since we have dedicated chatbot API key
+        Call Gemini API with reasonable error handling for fresh API key
         """
         if not GENAI_AVAILABLE or not model:
             return None, "Gemini AI is not available"
+        
+        # Check if quota is exceeded before making any calls
+        if self.rate_limiter.is_quota_exceeded():
+            return ("I'm currently unable to process requests due to daily quota limits. "
+                   "Please try again tomorrow or contact our veterinarians for immediate assistance."), None
             
         for attempt in range(max_retries):
             try:
-                # Wait if rate limited
-                was_rate_limited = self.rate_limiter.wait_if_needed()
+                # Small delay for the first attempt to be courteous
+                if attempt == 0:
+                    time.sleep(0.2)  # Small initial delay
+                
+                # Wait if rate limited or quota exceeded
+                should_skip = self.rate_limiter.wait_if_needed()
+                if should_skip and self.rate_limiter.is_quota_exceeded():
+                    return ("I'm currently unable to process requests due to daily quota limits. "
+                           "Please try again tomorrow or contact our veterinarians."), None
                 
                 # Make request
                 if image:
@@ -147,14 +188,27 @@ class AnimalDiseaseChatbot:
                 
                 # Handle different types of errors
                 if "429" in error_str or "resource exhausted" in error_str or "quota" in error_str:
-                    wait_time = self.rate_limiter.handle_rate_limit_error()
+                    wait_time = self.rate_limiter.handle_rate_limit_error(str(e))
+                    
+                    # If quota exceeded, don't retry - provide helpful fallback
+                    if self.rate_limiter.is_quota_exceeded():
+                        return ("I've reached my daily quota limit. This is normal for free tier usage. "
+                               "Please try again tomorrow, or you can:\n"
+                               "• Use our disease detection features\n"
+                               "• Consult with our veterinarians\n"
+                               "• Browse our health resources"), None
                     
                     if attempt < max_retries - 1:
                         logger.info(f"🔄 Retrying after rate limit (attempt {attempt + 1}/{max_retries})...")
-                        time.sleep(wait_time)
+                        # Reasonable wait time for rate limit errors
+                        retry_wait = min(wait_time, 10)  # Cap at 10 seconds for retries
+                        logger.info(f"⏳ Waiting {retry_wait:.1f} seconds before retry...")
+                        time.sleep(retry_wait)
                         continue
                     else:
-                        return None, f"Rate limit exceeded after {max_retries} attempts. Please try again later."
+                        # Provide helpful fallback response for rate limit
+                        return ("I'm currently experiencing high demand. Please try your question again in a few moments. "
+                               "In the meantime, you can browse our disease detection features or consult with our veterinarians."), None
                         
                 elif "network" in error_str or "connection" in error_str or "timeout" in error_str:
                     if attempt < max_retries - 1:
@@ -163,21 +217,22 @@ class AnimalDiseaseChatbot:
                         time.sleep(wait_time)
                         continue
                     else:
-                        return None, f"Network error after {max_retries} attempts. Please check your connection."
+                        return ("I'm having trouble connecting to my AI service. Please check your internet connection and try again. "
+                               "If the problem persists, our veterinarians are available for consultation."), None
                         
                 elif "invalid" in error_str or "permission" in error_str:
-                    return None, f"API error: {str(e)}"
+                    return ("I'm experiencing a technical issue with my AI service. Please try again or contact our veterinarians for assistance."), None
                     
                 else:
                     if attempt < max_retries - 1:
-                        wait_time = (attempt + 1) * 1.5
+                        wait_time = (attempt + 1) * 1.0  # Reduced wait time
                         logger.info(f"⚠️ Gemini error, retrying in {wait_time}s: {str(e)[:100]}...")
                         time.sleep(wait_time)
                         continue
                     else:
-                        return None, f"Gemini API error: {str(e)}"
+                        return ("I'm currently experiencing technical difficulties. Please try your question again or consult with our veterinarians for immediate assistance."), None
         
-        return None, "Failed after all retry attempts"
+        return ("I apologize, but I'm unable to process your request right now due to technical issues. Please try again in a few moments or consult with our veterinarians."), None
     
     def _initialize_genai(self):
         """Initialize Google Generative AI"""
@@ -235,20 +290,33 @@ class AnimalDiseaseChatbot:
             return False
     
     def test_model_health(self):
-        """Test if the model is working properly"""
+        """Test if the model is working properly with graceful quota handling"""
         try:
             if not self.model:
                 return False, "Model not initialized"
+            
+            # Check if quota is already exceeded
+            if self.rate_limiter.is_quota_exceeded():
+                return False, "Daily quota exceeded - normal for free tier users"
                 
-            # Simple test query
-            test_response = self.model.generate_content("Test")
-            if test_response and test_response.text:
-                logger.info("✅ Model health check passed")
-                return True, "Model is healthy"
-            else:
-                logger.warning("⚠️  Model health check failed - no response")
-                return False, "Model not responding"
-                
+            # Simple test query with conservative timeout
+            try:
+                test_response = self.model.generate_content("Test")
+                if test_response and test_response.text:
+                    logger.info("✅ Model health check passed")
+                    return True, "Model is healthy"
+                else:
+                    logger.warning("⚠️  Model health check failed - no response")
+                    return False, "Model not responding"
+            except Exception as e:
+                error_str = str(e).lower()
+                if "quota" in error_str or "429" in error_str:
+                    # Handle quota exceeded gracefully
+                    self.rate_limiter.handle_rate_limit_error(str(e))
+                    return False, f"Daily quota exceeded: {str(e)}"
+                else:
+                    raise e  # Re-raise non-quota errors
+                    
         except Exception as e:
             logger.error(f"❌ Model health check failed: {e}")
             return False, f"Model health check error: {str(e)}"
@@ -330,6 +398,30 @@ Keep response focused and helpful."""
                 
                 if error:
                     logger.error(f"❌ Text generation failed: {error}")
+                    
+                    # Provide a better fallback for rate limit errors
+                    if "Rate limit exceeded" in error:
+                        fallback_message = """🤖 I'm experiencing high demand right now. Here's some helpful guidance while you wait:
+
+**For immediate animal health concerns:**
+- Monitor vital signs (temperature, breathing, appetite)
+- Ensure animal has access to clean water
+- Contact local veterinarian for urgent issues
+
+**Common Care Tips:**
+- Keep sick animals isolated
+- Maintain clean living conditions  
+- Document symptoms and duration
+
+Please try asking your question again in a few minutes. Thank you for your patience!"""
+                        
+                        return {
+                            'success': True,  # Still return success but with fallback
+                            'response': fallback_message,
+                            'type': 'text',
+                            'is_fallback': True
+                        }
+                    
                     return {
                         'success': False,
                         'error': error,
